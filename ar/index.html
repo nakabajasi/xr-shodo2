@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1c2a50">
+  <title>正道官衙遺跡 現地AR（GPS連動）</title>
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho&display=swap">
+  <style>
+    :root {
+      --kinari: #f4efe3;
+      --ai: #22345e;
+      --ai-deep: #152240;
+      --vermilion: #9f3328;
+      --sumi: #1e2028;
+      --ud: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      --mincho: "BIZ UDPMincho", "Hiragino Mincho ProN", serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #0d1118; color: #fff; font-family: var(--ud);
+      -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+      overscroll-behavior: none;
+    }
+    .hidden { display: none !important; }
+
+    /* カメラ映像と透過3Dキャンバス */
+    #camera-video {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      object-fit: cover; z-index: 1; background: #0d1118;
+    }
+    #ar-canvas {
+      position: fixed; inset: 0; width: 100%; height: 100%;
+      z-index: 2; display: block; touch-action: none;
+    }
+
+    /* スタート画面 */
+    #start-screen {
+      position: fixed; inset: 0; z-index: 100;
+      background: linear-gradient(160deg, #faf7f0 0%, #ebe3d2 100%);
+      color: var(--sumi);
+      display: flex; align-items: center; justify-content: center;
+      padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+    }
+    .start-box {
+      width: min(360px, 92vw); text-align: center;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+    }
+    .start-kicker {
+      font-size: .78rem; font-weight: 700; letter-spacing: .1em;
+      color: #fff; background: var(--ai); padding: .28rem .85rem; border-radius: 999px;
+    }
+    .start-title {
+      font-family: var(--mincho); font-size: 1.6rem; font-weight: 700; color: var(--ai-deep);
+    }
+    .start-role {
+      font-size: .92rem; font-weight: 700; color: var(--vermilion); margin-top: -6px;
+    }
+    .start-desc {
+      font-size: .85rem; line-height: 1.7; color: #454957;
+    }
+    .building-chips {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%;
+    }
+    .building-chip {
+      font-family: var(--ud); font-size: .8rem; font-weight: 700;
+      padding: .42rem .78rem; border-radius: 999px;
+      border: 1.5px solid rgba(34, 52, 94, .3);
+      background: #fff; color: var(--ai); cursor: pointer;
+    }
+    .building-chip.is-active {
+      background: var(--ai); color: #fff; border-color: var(--ai);
+    }
+    .loading-wrap {
+      width: 100%; display: flex; flex-direction: column; gap: 6px;
+      font-size: .8rem; color: #555;
+    }
+    .loading-bar-bg {
+      height: 6px; border-radius: 3px; background: rgba(34, 52, 94, .14); overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%; width: 0%; background: var(--ai); transition: width .2s linear;
+    }
+    #btn-start-ar {
+      width: 100%; min-height: 54px; border: none; border-radius: 999px;
+      background: var(--vermilion); color: #fff;
+      font-family: var(--ud); font-size: 1.05rem; font-weight: 700; letter-spacing: .12em;
+      cursor: pointer; box-shadow: 0 4px 14px rgba(159, 51, 40, .3);
+    }
+    #btn-start-ar:disabled { background: #9aa0ad; box-shadow: none; cursor: progress; }
+    .start-back-link {
+      font-size: .84rem; font-weight: 700; color: var(--ai); text-decoration: none; margin-top: 4px;
+    }
+
+    /* HUD */
+    #hud {
+      position: fixed; inset: 0; z-index: 20; pointer-events: none;
+    }
+    .hud-top {
+      position: absolute; top: calc(env(safe-area-inset-top, 0px) + 10px); left: 10px; right: 10px;
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+    }
+    .hud-btn {
+      pointer-events: auto; font-family: var(--ud); font-weight: 700; font-size: .78rem;
+      color: #fff; background: rgba(21, 34, 64, .82);
+      border: 1px solid rgba(255, 255, 255, .32);
+      padding: .46rem .85rem; border-radius: 999px; text-decoration: none; cursor: pointer;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .hud-btn.is-accent {
+      background: rgba(159, 51, 40, .9); border-color: rgba(255, 255, 255, .4);
+    }
+    .status-pill {
+      pointer-events: auto; flex: 1; max-width: 240px;
+      background: rgba(0, 0, 0, .64); border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 12px; padding: .45rem .75rem; text-align: center;
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+    }
+    .status-name { font-family: var(--mincho); font-size: .95rem; font-weight: 700; }
+    .status-dist { font-size: .76rem; color: #dce7ff; margin-top: 2px; }
+
+    /* 建物方向ガイド（画面外にいるときの矢印） */
+    #dir-guide {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(21, 34, 64, .84); color: #fff;
+      border: 1px solid rgba(255, 255, 255, .35);
+      padding: .6rem 1.1rem; border-radius: 999px;
+      font-size: .88rem; font-weight: 700; letter-spacing: .04em;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .35);
+    }
+
+    /* 現地外バナー */
+    #far-banner {
+      position: absolute; top: calc(env(safe-area-inset-top, 0px) + 74px); left: 50%;
+      transform: translateX(-50%); pointer-events: auto;
+      width: min(350px, 92vw);
+      background: rgba(21, 34, 64, .92); border: 1px solid rgba(255, 255, 255, .3);
+      border-radius: 14px; padding: 10px 14px; text-align: center;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    #far-banner p { font-size: .78rem; line-height: 1.55; }
+
+    /* 下部コントロール */
+    .hud-bottom {
+      position: absolute; left: 10px; right: 10px;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+    }
+    .hud-hint {
+      font-size: .74rem; color: #fff; background: rgba(0, 0, 0, .58);
+      padding: .34rem .8rem; border-radius: 999px; text-align: center;
+    }
+    .hud-actions {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; pointer-events: auto;
+    }
+    .hud-building-bar {
+      display: flex; gap: 6px; overflow-x: auto; max-width: 100%; padding: 2px 4px;
+      pointer-events: auto;
+    }
+    .hud-b-btn {
+      flex-shrink: 0; font-family: var(--ud); font-size: .75rem; font-weight: 700;
+      padding: .38rem .75rem; border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .35);
+      background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer;
+    }
+    .hud-b-btn.is-active {
+      background: #f4efe3; color: var(--ai-deep); border-color: #f4efe3;
+    }
+  </style>
+</head>
+<body>
+  <video id="camera-video" playsinline muted autoplay></video>
+  <canvas id="ar-canvas"></canvas>
+
+  <!-- 開始画面 -->
+  <div id="start-screen">
+    <div class="start-box">
+      <span class="start-kicker">GPS連動 現地AR（実物大）</span>
+      <h1 id="start-title" class="start-title">庁屋</h1>
+      <p id="start-role" class="start-role">郡衙の中心建物</p>
+      <p class="start-desc">
+        GPSとスマホの向きに合わせて、復元建物を1棟ずつ実物大でカメラ映像に重ねて表示します。<br>
+        開始時にカメラ・位置情報・モーションセンサーを許可してください。
+      </p>
+      <div id="start-building-chips" class="building-chips"></div>
+      <div class="loading-wrap">
+        <span id="loading-text">3Dモデルを読み込んでいます…</span>
+        <div class="loading-bar-bg"><div id="loading-fill" class="loading-bar-fill"></div></div>
+      </div>
+      <button id="btn-start-ar" type="button" disabled>読み込み中…</button>
+      <a class="start-back-link" href="../index.html#map">← アプリへ戻る</a>
+    </div>
+  </div>
+
+  <!-- AR中HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <a class="hud-btn" href="../index.html#map">← 戻る</a>
+      <div class="status-pill">
+        <div id="hud-building-name" class="status-name">庁屋</div>
+        <div id="hud-dist-text" class="status-dist">現在地を確認中…</div>
+      </div>
+      <button id="btn-refresh-gps" class="hud-btn" type="button">位置更新</button>
+    </div>
+
+    <div id="far-banner" class="hidden">
+      <p id="far-banner-text">現地から離れているため、実座標では遠くに表示されます。</p>
+      <button id="btn-demo-place" class="hud-btn is-accent" type="button">正面18m先にお試し表示</button>
+    </div>
+
+    <div id="dir-guide" class="hidden">▶ 右へ回ってください</div>
+
+    <div class="hud-bottom">
+      <div class="hud-hint">左右にスワイプすると方角のズレを微調整できます</div>
+      <div class="hud-actions">
+        <button id="btn-reset-yaw" class="hud-btn" type="button">方角リセット</button>
+        <button id="btn-toggle-demo" class="hud-btn hidden" type="button">GPS位置に戻す</button>
+      </div>
+      <div id="hud-building-bar" class="hud-building-bar"></div>
+    </div>
+  </div>
+
+  <script src="../js/config.js?v=20261125a"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+
+    const CFG = window.XR_CONFIG || { buildings: [] };
+    const BUILDINGS = CFG.buildings || [];
+    const params = new URLSearchParams(location.search);
+    const EYE_HEIGHT = 1.55;
+    const FAR_THRESHOLD_M = 200;
+
+    let currentBuilding = BUILDINGS.find(b => b.id === params.get('building')) || BUILDINGS[0];
+    let started = false;
+    let demoMode = false;
+    let userCoords = null;
+    let gpsWatchId = null;
+
+    // DOM
+    const videoEl = document.getElementById('camera-video');
+    const canvas = document.getElementById('ar-canvas');
+    const startScreen = document.getElementById('start-screen');
+    const startTitle = document.getElementById('start-title');
+    const startRole = document.getElementById('start-role');
+    const loadingText = document.getElementById('loading-text');
+    const loadingFill = document.getElementById('loading-fill');
+    const btnStart = document.getElementById('btn-start-ar');
+    const hud = document.getElementById('hud');
+    const hudName = document.getElementById('hud-building-name');
+    const hudDist = document.getElementById('hud-dist-text');
+    const dirGuide = document.getElementById('dir-guide');
+    const farBanner = document.getElementById('far-banner');
+    const farBannerText = document.getElementById('far-banner-text');
+    const btnDemoPlace = document.getElementById('btn-demo-place');
+    const btnToggleDemo = document.getElementById('btn-toggle-demo');
+
+    // Three.js（透過背景）
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.setClearColor(0x000000, 0);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, EYE_HEIGHT, 0);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x7a6b58, 1.05));
+    const sun = new THREE.DirectionalLight(0xfff1d6, 1.35);
+    sun.position.set(20, 40, 20);
+    scene.add(sun);
+
+    const modelPivot = new THREE.Group();
+    scene.add(modelPivot);
+
+    const gltfLoader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    const modelCache = new Map();
+    let activeModelObj = null;
+
+    function resolveModelPath(p) {
+      if (!p) return '';
+      if (p.startsWith('./')) return '../' + p.slice(2);
+      return p;
+    }
+
+    function loadBuildingModel(b) {
+      startTitle.textContent = b.name;
+      startRole.textContent = b.role;
+      hudName.textContent = b.name;
+
+      if (modelCache.has(b.id)) {
+        attachModel(modelCache.get(b.id), b);
+        loadingFill.style.width = '100%';
+        loadingText.textContent = `${b.name} の準備ができました`;
+        btnStart.disabled = false;
+        btnStart.textContent = '現地ARをはじめる';
+        return Promise.resolve();
+      }
+
+      btnStart.disabled = true;
+      btnStart.textContent = '読み込み中…';
+      loadingFill.style.width = '0%';
+      loadingText.textContent = `${b.name} の3Dデータを読み込んでいます…`;
+
+      return new Promise((resolve, reject) => {
+        gltfLoader.load(
+          resolveModelPath(b.glb),
+          (gltf) => {
+            const root = gltf.scene;
+            // バウンディングボックス底面を Y=0 に接地補正
+            root.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(root);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            root.position.set(-center.x, -box.min.y, -center.z);
+
+            const wrapper = new THREE.Group();
+            wrapper.add(root);
+            modelCache.set(b.id, wrapper);
+            attachModel(wrapper, b);
+
+            loadingFill.style.width = '100%';
+            loadingText.textContent = `${b.name} の準備ができました`;
+            btnStart.disabled = false;
+            btnStart.textContent = '現地ARをはじめる';
+            resolve();
+          },
+          (xhr) => {
+            if (xhr.lengthComputable && xhr.total > 0) {
+              const pct = Math.min(100, (xhr.loaded / xhr.total) * 100);
+              loadingFill.style.width = pct.toFixed(0) + '%';
+              loadingText.textContent = `${b.name} を読み込み中… ${pct.toFixed(0)}%`;
+            }
+          },
+          (err) => {
+            console.error('[AR load]', err);
+            loadingText.textContent = 'モデルの読み込みに失敗しました';
+            reject(err);
+          }
+        );
+      });
+    }
+
+    function attachModel(wrapper, b) {
+      if (activeModelObj) modelPivot.remove(activeModelObj);
+      activeModelObj = wrapper;
+      activeModelObj.rotation.y = THREE.MathUtils.degToRad(b.arYawDeg || 0);
+      modelPivot.add(activeModelObj);
+      updateModelPlacement();
+    }
+
+    // 建物切替UI（開始画面＋HUD下部）
+    function renderBuildingSelectors() {
+      const startWrap = document.getElementById('start-building-chips');
+      const hudWrap = document.getElementById('hud-building-bar');
+      startWrap.innerHTML = '';
+      hudWrap.innerHTML = '';
+      BUILDINGS.forEach((b) => {
+        const c1 = document.createElement('button');
+        c1.type = 'button';
+        c1.className = 'building-chip' + (b.id === currentBuilding.id ? ' is-active' : '');
+        c1.textContent = b.name;
+        c1.addEventListener('click', () => selectBuilding(b));
+        startWrap.appendChild(c1);
+
+        const c2 = document.createElement('button');
+        c2.type = 'button';
+        c2.className = 'hud-b-btn' + (b.id === currentBuilding.id ? ' is-active' : '');
+        c2.textContent = b.name;
+        c2.addEventListener('click', () => selectBuilding(b));
+        hudWrap.appendChild(c2);
+      });
+    }
+
+    async function selectBuilding(b) {
+      currentBuilding = b;
+      renderBuildingSelectors();
+      if (started) hudDist.textContent = `${b.name} を読み込み中…`;
+      await loadBuildingModel(b);
+      updateModelPlacement();
+    }
+
+    // ===== 地理計算（東=+X, 南=+Z, 北=-Z） =====
+    function relativeEastSouth(fromLat, fromLng, toLat, toLng) {
+      const R = 6378137.0;
+      const dLat = (toLat - fromLat) * Math.PI / 180;
+      const dLng = (toLng - fromLng) * Math.PI / 180;
+      const east = dLng * R * Math.cos(fromLat * Math.PI / 180);
+      const south = -dLat * R;
+      const dist = Math.hypot(east, south);
+      // 真北=0°, 東=90°, 南=180°, 西=270°
+      const bearing = (Math.atan2(east, -south) * 180 / Math.PI + 360) % 360;
+      return { east, south, dist, bearing };
+    }
+
+    function bearingToJp(deg) {
+      const dirs = ['北', '北東', '東', '南東', '南', '南西', '西', '北西'];
+      return dirs[Math.round(deg / 45) % 8];
+    }
+
+    function updateModelPlacement() {
+      if (!currentBuilding) return;
+      if (demoMode) {
+        // 現在のカメラ正面18m先に配置
+        const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+        fwd.y = 0;
+        if (fwd.lengthSq() < 1e-4) fwd.set(0, 0, -1);
+        fwd.normalize();
+        modelPivot.position.set(fwd.x * 18, 0, fwd.z * 18);
+        hudDist.textContent = 'お試し表示（正面 約18m）';
+        farBanner.classList.add('hidden');
+        btnToggleDemo.classList.remove('hidden');
+        return;
+      }
+
+      btnToggleDemo.classList.add('hidden');
+      if (!userCoords) {
+        // GPS取得前の仮配置（北へ20m）
+        modelPivot.position.set(0, 0, -20);
+        hudDist.textContent = 'GPS測位中…';
+        return;
+      }
+
+      const rel = relativeEastSouth(userCoords.lat, userCoords.lng, currentBuilding.lat, currentBuilding.lng);
+      const distRound = Math.round(rel.dist);
+      const dirLabel = bearingToJp(rel.bearing);
+
+      if (rel.dist > FAR_THRESHOLD_M) {
+        const km = rel.dist >= 1000 ? `${(rel.dist / 1000).toFixed(1)}km` : `${distRound}m`;
+        hudDist.textContent = `${dirLabel}へ 約${km}（現地外）`;
+        farBannerText.textContent = `${currentBuilding.name}から約${km}離れています。現地以外でもお試し表示で実物大を確認できます。`;
+        farBanner.classList.remove('hidden');
+        // 実座標方向のまま最大80m先へクランプして方向だけ分かるようにする
+        const scale = 80 / rel.dist;
+        modelPivot.position.set(rel.east * scale, 0, rel.south * scale);
+      } else {
+        farBanner.classList.add('hidden');
+        hudDist.textContent = `${dirLabel}へ 約${distRound}m`;
+        // 近すぎる場合は最低4m離してめり込みを軽減
+        const minDist = 4;
+        const factor = rel.dist > 0.1 && rel.dist < minDist ? (minDist / rel.dist) : 1;
+        modelPivot.position.set(rel.east * factor, 0, rel.south * factor);
+      }
+    }
+
+    // ===== センサー（カメラ・GPS・方位） =====
+    const orientState = {
+      alpha: null, beta: null, gamma: null,
+      screenOrient: 0, compassHeading: null,
+      baseYawOffset: 0, userYawOffset: 0, calibrated: false,
+      dragYaw: 0, dragPitch: 0, hasSensor: false
+    };
+    const _euler = new THREE.Euler();
+    const _q0 = new THREE.Quaternion();
+    const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+    const _zee = new THREE.Vector3(0, 0, 1);
+    const _yAxis = new THREE.Vector3(0, 1, 0);
+    const _yawQ = new THREE.Quaternion();
+    const _tmpQ = new THREE.Quaternion();
+    const _tmpEuler = new THREE.Euler();
+
+    function onScreenOrient() {
+      const a = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+      orientState.screenOrient = THREE.MathUtils.degToRad(a);
+    }
+    onScreenOrient();
+    window.addEventListener('orientationchange', onScreenOrient);
+
+    function onDeviceOrientation(e) {
+      if (e.alpha === null || e.beta === null || e.gamma === null) return;
+      orientState.hasSensor = true;
+      orientState.alpha = THREE.MathUtils.degToRad(e.alpha);
+      orientState.beta = THREE.MathUtils.degToRad(e.beta);
+      orientState.gamma = THREE.MathUtils.degToRad(e.gamma);
+      if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
+        orientState.compassHeading = e.webkitCompassHeading;
+      }
+    }
+
+    async function initSensors() {
+      // 1. 背面カメラ
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: 'environment' } },
+            audio: false
+          });
+          videoEl.srcObject = stream;
+          await videoEl.play().catch(() => {});
+        } catch (err) {
+          console.warn('[camera]', err);
+        }
+      }
+      // 2. 方位センサー
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          await DeviceOrientationEvent.requestPermission();
+        }
+        const evtName = ('ondeviceorientationabsolute' in window)
+          ? 'deviceorientationabsolute' : 'deviceorientation';
+        window.addEventListener(evtName, onDeviceOrientation, true);
+      } catch (err) {
+        console.warn('[orientation]', err);
+      }
+      // 3. GPS
+      startGpsWatch();
+    }
+
+    function startGpsWatch() {
+      if (!('geolocation' in navigator)) return;
+      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          userCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          updateModelPlacement();
+        },
+        () => {
+          if (!userCoords) hudDist.textContent = '位置情報を取得できません';
+        },
+        { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+      );
+    }
+
+    // スワイプによる方角微調整
+    const swipe = { id: null, x: 0, y: 0 };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (swipe.id !== null) return;
+      swipe.id = e.pointerId; swipe.x = e.clientX; swipe.y = e.clientY;
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== swipe.id) return;
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      swipe.x = e.clientX; swipe.y = e.clientY;
+      if (orientState.hasSensor) {
+        orientState.userYawOffset -= dx * 0.004;
+      } else {
+        orientState.dragYaw -= dx * 0.004;
+        orientState.dragPitch = Math.max(-1.2, Math.min(1.2, orientState.dragPitch - dy * 0.004));
+      }
+    });
+    const endSwipe = (e) => { if (e.pointerId === swipe.id) swipe.id = null; };
+    canvas.addEventListener('pointerup', endSwipe);
+    canvas.addEventListener('pointercancel', endSwipe);
+
+    // ボタン操作
+    document.getElementById('btn-reset-yaw').addEventListener('click', () => {
+      orientState.userYawOffset = 0;
+      orientState.calibrated = false;
+      orientState.dragYaw = 0;
+      orientState.dragPitch = 0;
+    });
+    document.getElementById('btn-refresh-gps').addEventListener('click', () => {
+      hudDist.textContent = '位置を再取得中…';
+      startGpsWatch();
+    });
+    btnDemoPlace.addEventListener('click', () => {
+      demoMode = true;
+      updateModelPlacement();
+    });
+    btnToggleDemo.addEventListener('click', () => {
+      demoMode = false;
+      updateModelPlacement();
+    });
+
+    // レンダリングループ
+    const _toTarget = new THREE.Vector3();
+    const _camFwd = new THREE.Vector3();
+    const _camRight = new THREE.Vector3();
+    const _dragEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+
+    function animate() {
+      if (orientState.hasSensor && orientState.alpha !== null) {
+        _euler.set(orientState.beta, orientState.alpha, -orientState.gamma, 'YXZ');
+        camera.quaternion.setFromEuler(_euler);
+        camera.quaternion.multiply(_q1);
+        camera.quaternion.multiply(_q0.setFromAxisAngle(_zee, -orientState.screenOrient));
+
+        if (!orientState.calibrated && orientState.compassHeading !== null) {
+          _tmpQ.copy(camera.quaternion);
+          _tmpEuler.setFromQuaternion(_tmpQ, 'YXZ');
+          const targetYaw = -THREE.MathUtils.degToRad(orientState.compassHeading);
+          orientState.baseYawOffset = targetYaw - _tmpEuler.y;
+          orientState.calibrated = true;
+        }
+        const totalYaw = orientState.baseYawOffset + orientState.userYawOffset;
+        if (totalYaw !== 0) {
+          camera.quaternion.premultiply(_yawQ.setFromAxisAngle(_yAxis, totalYaw));
+        }
+      } else {
+        _dragEuler.set(orientState.dragPitch, orientState.dragYaw, 0, 'YXZ');
+        camera.quaternion.setFromEuler(_dragEuler);
+      }
+
+      // 画面外方向インジケーター
+      _toTarget.subVectors(modelPivot.position, camera.position);
+      _toTarget.y = 0;
+      if (_toTarget.lengthSq() > 0.1) {
+        _toTarget.normalize();
+        _camFwd.set(0, 0, -1).applyQuaternion(camera.quaternion); _camFwd.y = 0; _camFwd.normalize();
+        _camRight.set(1, 0, 0).applyQuaternion(camera.quaternion); _camRight.y = 0; _camRight.normalize();
+        const dotFwd = _camFwd.dot(_toTarget);
+        const dotRight = _camRight.dot(_toTarget);
+        if (dotFwd < 0.55) {
+          dirGuide.textContent = dotRight >= 0
+            ? `${currentBuilding.name}は右側 ▶`
+            : `◀ ${currentBuilding.name}は左側`;
+          dirGuide.classList.remove('hidden');
+        } else {
+          dirGuide.classList.add('hidden');
+        }
+      }
+
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    btnStart.addEventListener('click', async () => {
+      if (started) return;
+      started = true;
+      btnStart.disabled = true;
+      btnStart.textContent = 'カメラを起動中…';
+      await initSensors();
+      startScreen.classList.add('hidden');
+      hud.classList.remove('hidden');
+      updateModelPlacement();
+      animate();
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // 初期化
+    renderBuildingSelectors();
+    loadBuildingModel(currentBuilding);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#f4efe3">
+  <title>正道官衙遺跡 ウォークスルー体験</title>
+  <meta name="description" content="奈良時代に役所のあった正道官衙遺跡を歩き回ろう！">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPMincho&display=swap">
+  <link rel="preload" href="site.glb" as="fetch" crossorigin>
+  <style>
+    :root {
+      --kinari: #f4efe3;
+      --kinari-deep: #e6ddc9;
+      --ai: #2a3d72;
+      --ai-deep: #1c2a50;
+      --hanada: #6b8bd6;
+      --sumi: #24262f;
+      --sumi-soft: #555867;
+      --ud: "BIZ UDPGothic", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+      --ud-mincho: "BIZ UDPMincho", "Hiragino Mincho ProN", "Noto Serif JP", "Yu Mincho", serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --joy: 132px;
+      --joy-gap: 18px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: var(--kinari); color: var(--sumi);
+      font-family: var(--ud);
+      -webkit-touch-callout: none; -webkit-user-select: none;
+      user-select: none; overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+    }
+    canvas { display: block; touch-action: none; }
+    .hidden { display: none !important; }
+
+    /* ===== スタート画面 ===== */
+    #start {
+      position: fixed; inset: 0; z-index: 100;
+      background:
+        radial-gradient(120% 75% at 70% 30%, #fbf8f1 0%, var(--kinari) 55%, var(--kinari-deep) 100%);
+      padding:
+        max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity .4s ease;
+    }
+    #start.leaving { opacity: 0; pointer-events: none; }
+    .start-card {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; gap: 14px; width: min(360px, 90vw);
+    }
+    .start-heading {
+      font-family: var(--ud-mincho); font-size: 1.45rem; font-weight: 700;
+      color: var(--ai-deep); letter-spacing: .1em;
+    }
+    .start-mode-badge {
+      display: inline-block; font-size: .78rem; font-weight: 700;
+      color: #fff; background: var(--ai); padding: .28rem .8rem; border-radius: 999px;
+      letter-spacing: .06em;
+    }
+    .start-desc {
+      font-size: .88rem; line-height: 1.7; color: var(--sumi-soft);
+    }
+    #start-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .5em;
+      width: min(100%, 20rem); min-height: 56px;
+      font-family: var(--ud); font-weight: 700; font-size: 1.15rem; letter-spacing: .16em;
+      color: #fff; background: var(--ai);
+      border: none; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 5px 0 var(--ai-deep), 0 10px 18px rgba(28, 42, 80, .24);
+      transition: transform .08s ease, box-shadow .08s ease, background .2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #start-btn:hover { background: #33498a; }
+    #start-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ai-deep); }
+    #start-btn:disabled { cursor: progress; background: #6b7699; box-shadow: none; }
+    .loading {
+      width: 100%; display: flex; flex-direction: column; gap: 6px;
+      font-size: .82rem; color: var(--sumi-soft); text-align: center; min-height: 2.2em;
+    }
+    .loading .bar {
+      height: 5px; border-radius: 3px; background: rgba(42, 61, 114, .14); overflow: hidden;
+    }
+    .loading .bar span {
+      display: block; height: 100%; width: 0%;
+      background: var(--hanada); transition: width .2s linear;
+    }
+    .loading.done .bar { visibility: hidden; }
+    .loading .err { color: #a1342b; font-weight: 700; }
+
+    /* ===== VR中のHUD ===== */
+    #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+    .back-map-btn {
+      position: fixed; top: calc(env(safe-area-inset-top, 0px) + 12px); left: calc(env(safe-area-inset-left, 0px) + 12px);
+      z-index: 120; pointer-events: auto;
+      font-family: var(--ud); font-weight: 700; font-size: .82rem;
+      color: #fff; background: rgba(28, 42, 80, .86);
+      border: 1px solid rgba(255,255,255,.35); padding: .48rem .9rem; border-radius: 999px;
+      text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    #hud .top-bar {
+      position: absolute; top: env(safe-area-inset-top, 0); left: 0; right: 0;
+      padding: .75rem .9rem; display: flex;
+      justify-content: flex-end; align-items: flex-start; gap: 8px;
+    }
+    #hud .top-controls {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 7px;
+      pointer-events: auto; max-width: calc(100vw - 140px);
+    }
+    .hud-pill-btn {
+      font-family: var(--ud); font-weight: 700; font-size: .74rem; line-height: 1.3;
+      color: var(--ai-deep); background: rgba(244, 239, 227, .94);
+      border: 1.5px solid rgba(28, 42, 80, .28);
+      padding: .46rem .82rem; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .22);
+      text-align: center; -webkit-tap-highlight-color: transparent;
+    }
+    .hud-pill-btn.is-active {
+      color: #fff; background: rgba(42, 61, 114, .92);
+      border-color: rgba(255, 255, 255, .4);
+    }
+    #hud .stats {
+      font-family: var(--mono); font-size: .7rem; line-height: 1.45; text-align: right;
+      color: #fff; background: rgba(0, 0, 0, .55); padding: .3rem .5rem; border-radius: 4px;
+      white-space: pre;
+    }
+    #toast {
+      position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 60px);
+      transform: translateX(-50%); z-index: 40;
+      background: rgba(28, 42, 80, .92); color: #fff;
+      padding: .55rem 1rem; border-radius: 10px;
+      font-size: .8rem; line-height: 1.5; text-align: center;
+      max-width: min(340px, 90vw); box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+      opacity: 0; pointer-events: none; transition: opacity .3s ease;
+    }
+    #toast.visible { opacity: 1; }
+
+    /* ジョイスティック */
+    #joystick {
+      position: absolute; pointer-events: auto; touch-action: none;
+      left: calc(env(safe-area-inset-left, 0px) + var(--joy-gap));
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--joy-gap));
+      width: var(--joy); height: var(--joy); border-radius: 50%;
+      background: rgba(247, 246, 242, .7);
+      border: 1.5px solid #4a4a4c;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .10);
+      -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+      cursor: grab; transition: background .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #joystick.active { background: rgba(247, 246, 242, .82); cursor: grabbing; }
+    #joystick-knob {
+      position: absolute; left: 50%; top: 50%;
+      width: 33%; height: 33%; border-radius: 50%;
+      transform: translate(-50%, -50%);
+      background: #fafaf9; border: 1.5px solid #4a4a4c;
+      transition: transform .18s ease-out; pointer-events: none;
+    }
+    #joystick.active #joystick-knob { transition: none; }
+    #joystick-knob::after {
+      content: ""; position: absolute; left: 50%; top: 50%;
+      width: 19%; height: 19%; border-radius: 50%;
+      transform: translate(-50%, -50%); background: #1d1d1f;
+    }
+    #move-hint {
+      position: absolute;
+      left: calc(env(safe-area-inset-left, 0px) + var(--joy-gap) + var(--joy) + 12px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--joy-gap) + var(--joy) / 2);
+      transform: translateY(50%);
+      max-width: min(14.5rem, calc(100% - var(--joy) - 135px));
+      font-family: var(--ud); font-size: .76rem; line-height: 1.5;
+      color: #fff; background: rgba(28, 42, 80, .8);
+      padding: .45rem .75rem; border-radius: 12px;
+      -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+      transition: opacity .6s ease;
+    }
+    #move-hint.faded { opacity: 0; }
+    .bottom-right-controls {
+      position: absolute; pointer-events: auto;
+      right: calc(env(safe-area-inset-right, 0px) + 1rem);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--joy-gap));
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
+    #reset-btn {
+      font-family: var(--ud); font-weight: 700; font-size: .8rem;
+      color: var(--ai-deep); background: rgba(244, 239, 227, .94);
+      border: 1.5px solid rgba(28, 42, 80, .2);
+      padding: .55rem 1rem; border-radius: 999px; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+    }
+    #crosshair {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255, 255, 255, .55); box-shadow: 0 0 0 1px rgba(0, 0, 0, .25);
+    }
+
+    /* ===== 解説パネル ===== */
+    #kaisetsu {
+      position: fixed; left: 50%; z-index: 30;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + var(--joy-gap) + var(--joy) + 14px);
+      width: min(36rem, calc(100% - 24px));
+      transform: translate(-50%, 14px);
+      background: rgba(0, 0, 0, .88); color: #fff;
+      border: 1px solid rgba(255, 255, 255, .22); border-radius: 12px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .35);
+      padding: .95rem 3.3rem 1.05rem 1.15rem;
+      font-family: var(--ud);
+      opacity: 0; visibility: hidden; pointer-events: none;
+      transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s;
+    }
+    #kaisetsu.visible {
+      opacity: 1; visibility: visible; transform: translate(-50%, 0);
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    #kaisetsu.scrollable { pointer-events: auto; }
+    #kaisetsu-title { font-size: 1.25rem; font-weight: 700; letter-spacing: .06em; margin-bottom: .35rem; }
+    #kaisetsu-body {
+      font-size: 1.02rem; line-height: 1.85; white-space: pre-wrap;
+      max-height: 36vh; max-height: 36svh; overflow-y: auto; overscroll-behavior: contain;
+    }
+    #kaisetsu-close {
+      position: absolute; top: 6px; right: 6px;
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.75rem; color: #fff; background: transparent; border: none; cursor: pointer;
+      pointer-events: auto;
+    }
+    @media (min-width: 920px) {
+      #kaisetsu { bottom: calc(env(safe-area-inset-bottom, 0px) + 1.25rem); }
+    }
+  </style>
+</head>
+<body>
+  <a class="back-map-btn" href="../index.html#map">← マップへ戻る</a>
+
+  <!-- スタート画面（1タップでiOS/Androidセンサー許可を取得） -->
+  <div id="start">
+    <div class="start-card">
+      <p class="start-heading">正道官衙遺跡 ウォークスルー</p>
+      <span id="start-mode-badge" class="start-mode-badge">地点指定モード</span>
+      <p id="start-desc" class="start-desc">スマホを動かして360度見渡しながら、奈良時代の復元建物群を歩き回れます。</p>
+      <div class="loading" id="loading" aria-live="polite">
+        <div class="label" id="loading-label">3Dデータを読み込んでいます…</div>
+        <div class="bar"><span id="loading-bar"></span></div>
+      </div>
+      <button id="start-btn" type="button" disabled><span id="start-label">読み込み中…</span></button>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <div id="hud" class="hidden">
+    <div class="top-bar">
+      <div class="top-controls">
+        <button id="look-mode-btn" class="hud-pill-btn" type="button">スマホ画面をスワイプして見渡す</button>
+        <button id="gps-walk-btn" class="hud-pill-btn hidden" type="button">歩くと位置が移動：OFF</button>
+        <span class="stats hidden" id="stats">--</span>
+      </div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="joystick" role="application" aria-label="移動（中の円を動かした方向に歩く）"><div id="joystick-knob"></div></div>
+    <span id="move-hint">中の円を動かすと歩けます</span>
+    <div class="bottom-right-controls">
+      <button id="reset-btn" type="button">はじめの位置へ</button>
+    </div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <section id="kaisetsu" role="region" aria-live="polite" aria-labelledby="kaisetsu-title">
+    <h2 id="kaisetsu-title"></h2>
+    <div id="kaisetsu-body"></div>
+    <button id="kaisetsu-close" type="button" aria-label="解説を閉じる">×</button>
+  </section>
+
+  <script src="../js/config.js?v=20261125a"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+    import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+    import { Sky } from 'three/addons/objects/Sky.js';
+
+    const MODEL_URL = 'site.glb';
+    const KAISETSU_URL = 'kaisetsu.txt';
+    const TEXT_LABELS = {
+      Text_choya: '庁屋',
+      Text_higashiya: '東屋',
+      Text_mukaiya: '向屋',
+      Text_nanmon: '南門',
+    };
+    const KAISETSU_EXIT_MARGIN = 0.5;
+    const GEO_CFG = (window.XR_CONFIG && window.XR_CONFIG.siteGeoTransform) || {
+      lat0: 34.86015, lng0: 135.78433,
+      a: 0.989504, b: 0.067614, tx: 6.5516, tz: 28.8801,
+      northOffsetDeg: 3.91, siteRadiusMeters: 200
+    };
+
+    const CONFIG = {
+      eyeHeight: 1.55, walkSpeed: 1.6,
+      collisionRadius: 0.25,
+      stepUpMax: 0.45, slopeCosMin: 0.5,
+      climbSpeed: 6.0, fallSpeed: 8.0,
+      fov: 75, nearPlane: 0.05, farPlane: 1000,
+      toneMappingExposure: 1.0,
+      gtao: { radius: 0.5, distanceExponent: 1.0, thickness: 1.0, scale: 1.0, samples: 16 },
+      hemiIntensity: 0.4, sunIntensity: 1.0, sunPosition: [8, 14, 6],
+      skyJpgPath: 'sky.jpg',
+      skyShaderTurbidity: 4, skyShaderRayleigh: 2,
+      skyShaderSunElevation: 30, skyShaderSunAzimuth: 180,
+    };
+
+    const params = new URLSearchParams(location.search);
+    const modelUrl = params.get('model') || MODEL_URL;
+    const spawnOverride = params.get('spawn');
+    const cameraParam = params.get('camera');
+    const isGpsMode = params.get('mode') === 'gps';
+    const fogDisabled = params.get('fog') === '0';
+    const aoOff = params.get('ao') === 'off';
+    const aoDebug = params.get('ao') === 'raw';
+    const walls = params.get('walls') === '1';
+    const debug = params.get('debug') === '1';
+    const radiusOverride = parseFloat(params.get('radius'));
+    if (Number.isFinite(radiusOverride) && radiusOverride > 0) CONFIG.collisionRadius = radiusOverride;
+
+    const modeBadgeEl = document.getElementById('start-mode-badge');
+    const startDescEl = document.getElementById('start-desc');
+    if (isGpsMode) {
+      modeBadgeEl.textContent = '現地・現在地モード（GPS＋実方位）';
+      startDescEl.textContent = '現在地とカメラの向きに合わせて開始します。開始時に位置情報とモーションセンサーを許可してください。';
+    } else {
+      modeBadgeEl.textContent = '地点指定モード';
+      startDescEl.textContent = 'スマホを動かして周りを見渡せます。開始時にモーションセンサーを許可してください。';
+    }
+
+    const toastEl = document.getElementById('toast');
+    let toastTimer = null;
+    function showToast(msg, ms = 3600) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('visible');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove('visible'), ms);
+    }
+
+    // ===== GPS → GLB座標変換 =====
+    function latLngToGlbXZ(lat, lng) {
+      const R = 6378137.0;
+      const dLat = (lat - GEO_CFG.lat0) * Math.PI / 180;
+      const dLng = (lng - GEO_CFG.lng0) * Math.PI / 180;
+      const east = dLng * R * Math.cos(GEO_CFG.lat0 * Math.PI / 180);
+      const south = -dLat * R;
+      const dist = Math.hypot(east, south);
+      const x = GEO_CFG.a * east - GEO_CFG.b * south + GEO_CFG.tx;
+      const z = GEO_CFG.b * east + GEO_CFG.a * south + GEO_CFG.tz;
+      return { x, z, dist };
+    }
+
+    // ===== Three.js 初期化 =====
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = CONFIG.toneMappingExposure;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xb8c4cc);
+    if (!fogDisabled) scene.fog = new THREE.Fog(0xb8c4cc, 80, 400);
+
+    const camera = new THREE.PerspectiveCamera(CONFIG.fov, window.innerWidth / window.innerHeight, CONFIG.nearPlane, CONFIG.farPlane);
+    camera.position.set(0, CONFIG.eyeHeight, 5);
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x6b5d4f, CONFIG.hemiIntensity));
+    const sun = new THREE.DirectionalLight(0xffeacc, CONFIG.sunIntensity);
+    sun.position.set(...CONFIG.sunPosition);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -40; sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40; sun.shadow.camera.bottom = -40;
+    sun.shadow.bias = -0.0005;
+    scene.add(sun);
+
+    let composer = null;
+    if (!aoOff) {
+      composer = new EffectComposer(renderer);
+      composer.addPass(new RenderPass(scene, camera));
+      const gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+      gtaoPass.output = aoDebug ? GTAOPass.OUTPUT.Denoise : GTAOPass.OUTPUT.Default;
+      gtaoPass.updateGtaoMaterial(CONFIG.gtao);
+      composer.addPass(gtaoPass);
+      composer.addPass(new OutputPass());
+    }
+
+    function setupProceduralSky() {
+      const skyMesh = new Sky();
+      skyMesh.scale.setScalar(450000);
+      scene.add(skyMesh);
+      const u = skyMesh.material.uniforms;
+      u['turbidity'].value = CONFIG.skyShaderTurbidity;
+      u['rayleigh'].value = CONFIG.skyShaderRayleigh;
+      u['mieCoefficient'].value = 0.005;
+      u['mieDirectionalG'].value = 0.7;
+      const sunVec = new THREE.Vector3();
+      sunVec.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - CONFIG.skyShaderSunElevation), THREE.MathUtils.degToRad(CONFIG.skyShaderSunAzimuth));
+      u['sunPosition'].value.copy(sunVec);
+      scene.background = null;
+    }
+    function loadSky() {
+      return new Promise((resolve) => {
+        new THREE.TextureLoader().load(CONFIG.skyJpgPath, (texture) => {
+          texture.mapping = THREE.EquirectangularReflectionMapping;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          scene.background = texture;
+          scene.environment = texture;
+          resolve();
+        }, undefined, () => { setupProceduralSky(); resolve(); });
+      });
+    }
+
+    // ===== 当たり判定 =====
+    const WALKABLE = [];
+    const AABB = [];
+    function markWalkable(mesh) { WALKABLE.push(mesh); }
+    function markBlocking(mesh) {
+      if (!walls) return;
+      mesh.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(mesh);
+      AABB.push({ min: box.min.clone(), max: box.max.clone() });
+    }
+    function markBoth(mesh) { markWalkable(mesh); markBlocking(mesh); }
+    function isBlocked(newX, newZ, footY, curX, curZ) {
+      if (!walls) return false;
+      const r = CONFIG.collisionRadius;
+      const headY = footY + CONFIG.eyeHeight + 0.5;
+      for (const c of AABB) {
+        if (footY >= c.max.y - CONFIG.stepUpMax) continue;
+        if (c.min.y > headY) continue;
+        if (curX > c.min.x - r && curX < c.max.x + r && curZ > c.min.z - r && curZ < c.max.z + r) continue;
+        if (newX > c.min.x - r && newX < c.max.x + r && newZ > c.min.z - r && newZ < c.max.z + r) return true;
+      }
+      return false;
+    }
+
+    const _down = new THREE.Vector3(0, -1, 0);
+    const _ray = new THREE.Raycaster();
+    const _origin = new THREE.Vector3();
+    const _n = new THREE.Vector3();
+    function firstWalkableHit(fromY, x, z, far) {
+      _origin.set(x, fromY, z);
+      _ray.set(_origin, _down);
+      _ray.far = far;
+      const hits = _ray.intersectObjects(WALKABLE, false);
+      for (const h of hits) {
+        if (!h.face) continue;
+        _n.copy(h.face.normal).transformDirection(h.object.matrixWorld);
+        if (_n.y < CONFIG.slopeCosMin) continue;
+        return h.point.y;
+      }
+      return null;
+    }
+    const findGround = (x, z, footY) => firstWalkableHit(footY + CONFIG.stepUpMax + 0.05, x, z, 1000);
+    const findGroundAt = (x, z) => firstWalkableHit(1000, x, z, 2000);
+
+    function classifyMesh(obj) {
+      const name = (obj.name || '').toLowerCase();
+      if (/_walk|_floor|_stair|_ramp|_ground/.test(name)) markWalkable(obj);
+      else if (/_wall|_obstacle/.test(name)) markBoth(obj);
+      else {
+        const box = new THREE.Box3().setFromObject(obj);
+        if (box.max.y - box.min.y > CONFIG.stepUpMax + 0.1) markBoth(obj);
+        else markWalkable(obj);
+      }
+    }
+
+    // ===== GLB 読み込み =====
+    let cameraMarker = null;
+    const cameraMarkers = new Map();
+    const billboardTexts = [];
+    const _bbWorldPos = new THREE.Vector3();
+    let spawnPoint = null;
+    const anchors = [];
+    const normKey = (s) => String(s ?? '').normalize('NFKC').trim().toLowerCase();
+
+    function processGltfRoot(root) {
+      root.updateMatrixWorld(true);
+      root.traverse(obj => {
+        const nameOrig = obj.userData.name || obj.name || '';
+        const name = nameOrig.toLowerCase();
+        if (name.startsWith('text_')) {
+          let frontAngle = 0, foundNormal = false;
+          obj.traverse((child) => {
+            if (!foundNormal && child.isMesh && child.geometry && child.geometry.attributes && child.geometry.attributes.normal) {
+              const nAttr = child.geometry.attributes.normal;
+              let nx = 0, nz = 0;
+              for (let k = 0; k < nAttr.count; k++) { nx += nAttr.getX(k); nz += nAttr.getZ(k); }
+              if (Math.hypot(nx, nz) > 1e-4) { frontAngle = Math.atan2(nx, nz); foundNormal = true; }
+            }
+          });
+          obj.userData._frontAngle = frontAngle;
+          billboardTexts.push(obj);
+        }
+        if (name === 'camera' || name.startsWith('camera_')) {
+          const pos = new THREE.Vector3();
+          obj.getWorldPosition(pos);
+          cameraMarkers.set(name, pos);
+          if (!cameraMarker || name === 'camera') cameraMarker = pos;
+          obj.visible = false;
+          return;
+        }
+        if (name === 'spawn' || name.startsWith('spawn_')) {
+          spawnPoint = new THREE.Vector3();
+          obj.getWorldPosition(spawnPoint);
+          obj.visible = false;
+          return;
+        }
+        const m = /^(text|trigger)_(.+)$/i.exec(nameOrig);
+        if (m && !obj.userData._anchorChild) {
+          const center = new THREE.Vector3();
+          const box = new THREE.Box3().setFromObject(obj);
+          if (box.isEmpty()) obj.getWorldPosition(center); else box.getCenter(center);
+          const labels = [obj.userData.label, TEXT_LABELS[nameOrig], m[2], nameOrig].filter(Boolean).map(normKey);
+          anchors.push({ node: nameOrig, center, labels: [...new Set(labels)] });
+          if (m[1].toLowerCase() === 'trigger') obj.visible = false;
+          obj.traverse(o => { o.userData._anchorChild = true; });
+          return;
+        }
+        if (obj.isMesh && !obj.userData._anchorChild) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+          classifyMesh(obj);
+        }
+      });
+    }
+
+    const loadingEl = document.getElementById('loading');
+    const loadingLabel = document.getElementById('loading-label');
+    const loadingBar = document.getElementById('loading-bar');
+    const startBtn = document.getElementById('start-btn');
+    const startLabel = document.getElementById('start-label');
+
+    function loadModel(url) {
+      return new Promise((resolve, reject) => {
+        const gltfLoader = new GLTFLoader();
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+        gltfLoader.setDRACOLoader(dracoLoader);
+        gltfLoader.load(url,
+          (gltf) => {
+            processGltfRoot(gltf.scene);
+            scene.add(gltf.scene);
+            dracoLoader.dispose();
+            resolve();
+          },
+          (xhr) => {
+            if (xhr.lengthComputable && xhr.total > 0) {
+              const pct = Math.min(100, (xhr.loaded / xhr.total) * 100);
+              loadingBar.style.width = pct.toFixed(0) + '%';
+              loadingLabel.textContent = `3Dデータを読み込んでいます　${pct.toFixed(0)}%`;
+            }
+          },
+          (err) => { dracoLoader.dispose(); reject(err); }
+        );
+      });
+    }
+
+    // ===== 解説 =====
+    async function loadKaisetsu() {
+      let res;
+      try { res = await fetch(KAISETSU_URL, { cache: 'no-cache' }); } catch (_) { return []; }
+      if (!res.ok) return [];
+      const buf = await res.arrayBuffer();
+      let text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+      catch (_) { text = new TextDecoder('shift_jis').decode(buf); }
+      const byKey = new Map();
+      text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/).forEach((raw) => {
+        const line = raw.trim();
+        if (!line || line.startsWith('#')) return;
+        const mm = /^([^,，\t]+)[,，\t]\s*([0-9０-９.．]+)\s*(?:m|ｍ)?\s*[,，\t](.*)$/i.exec(line);
+        if (!mm) return;
+        const name = mm[1].trim();
+        const radius = parseFloat(mm[2].normalize('NFKC'));
+        let body = mm[3].trim();
+        if (/^".*"$/s.test(body)) body = body.slice(1, -1).replace(/""/g, '"');
+        body = body.replace(/\\n/g, '\n');
+        if (!(radius > 0)) return;
+        const key = normKey(name);
+        if (byKey.has(key)) byKey.get(key).body += '\n\n' + body;
+        else byKey.set(key, { key, name, radius, body });
+      });
+      return [...byKey.values()];
+    }
+
+    const zones = [];
+    function buildZones(entries) {
+      for (const e of entries) {
+        const a = anchors.find(a => a.labels.includes(e.key));
+        if (!a) continue;
+        zones.push({ name: e.name, body: e.body, radius: e.radius, center: a.center, inside: false, dismissed: false, dist: Infinity });
+      }
+    }
+
+    const panel = document.getElementById('kaisetsu');
+    const panelTitle = document.getElementById('kaisetsu-title');
+    const panelBody = document.getElementById('kaisetsu-body');
+    let activeZone = null;
+    function showPanel(z) {
+      panelTitle.textContent = z.name;
+      panelBody.textContent = z.body;
+      panelBody.scrollTop = 0;
+      panel.classList.add('visible');
+      hintEl.classList.add('faded');
+      panel.classList.toggle('scrollable', panelBody.scrollHeight > panelBody.clientHeight + 1);
+    }
+    function hidePanel() { panel.classList.remove('visible', 'scrollable'); }
+    function updateKaisetsu(pos) {
+      let best = null;
+      for (const z of zones) {
+        z.dist = Math.hypot(pos.x - z.center.x, pos.z - z.center.z);
+        if (!z.inside && z.dist < z.radius) { z.inside = true; z.dismissed = false; }
+        else if (z.inside && z.dist > z.radius + KAISETSU_EXIT_MARGIN) { z.inside = false; z.dismissed = false; }
+        if (z.inside && !z.dismissed && (!best || z.dist < best.dist)) best = z;
+      }
+      if (best !== activeZone) {
+        activeZone = best;
+        if (best) showPanel(best); else hidePanel();
+      }
+    }
+    document.getElementById('kaisetsu-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (activeZone) activeZone.dismissed = true;
+      activeZone = null;
+      hidePanel();
+    });
+
+    // ===== 端末の向き（ジャイロ／コンパス） =====
+    const deviceState = {
+      alpha: null, beta: null, gamma: null,
+      screenOrient: 0,
+      permissionGranted: false,
+      gyroActive: false,
+      compassHeading: null,
+      yawOffset: 0,
+      calibrated: false,
+      listenerAttached: false,
+    };
+    const _zee = new THREE.Vector3(0, 0, 1);
+    const _yAxis = new THREE.Vector3(0, 1, 0);
+    const _euler = new THREE.Euler();
+    const _q0 = new THREE.Quaternion();
+    const _q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+    const _yawQ = new THREE.Quaternion();
+    const _tempQ = new THREE.Quaternion();
+    const _tempEuler = new THREE.Euler();
+
+    function computeRawCameraQuat(alpha, beta, gamma, orient, targetQ) {
+      _euler.set(beta, alpha, -gamma, 'YXZ');
+      targetQ.setFromEuler(_euler);
+      targetQ.multiply(_q1);
+      targetQ.multiply(_q0.setFromAxisAngle(_zee, -orient));
+      return targetQ;
+    }
+
+    function calibrateGyroOrientation() {
+      if (deviceState.alpha === null) return;
+      computeRawCameraQuat(deviceState.alpha, deviceState.beta, deviceState.gamma, deviceState.screenOrient, _tempQ);
+      _tempEuler.setFromQuaternion(_tempQ, 'YXZ');
+
+      if (isGpsMode && deviceState.compassHeading !== null) {
+        // 現地モード：実世界のコンパス方位(北=0°, 東=90°)をGLB空間(-Z≒北)へ合わせる
+        const targetYaw = -THREE.MathUtils.degToRad(deviceState.compassHeading - (GEO_CFG.northOffsetDeg || 0));
+        deviceState.yawOffset = targetYaw - _tempEuler.y;
+      } else if (!isGpsMode) {
+        // 地点指定モード：最初に構えたスマホの向き＝その地点の正面（0 rad）に合わせる
+        deviceState.yawOffset = -_tempEuler.y;
+      } else {
+        // Android等のabsolute alphaでwebkitCompassHeadingがない場合
+        deviceState.yawOffset = THREE.MathUtils.degToRad(GEO_CFG.northOffsetDeg || 0);
+      }
+      deviceState.calibrated = true;
+    }
+
+    function setCameraQuaternion(alpha, beta, gamma, orient) {
+      computeRawCameraQuat(alpha, beta, gamma, orient, camera.quaternion);
+      if (!deviceState.calibrated) calibrateGyroOrientation();
+      if (deviceState.yawOffset !== 0) {
+        camera.quaternion.premultiply(_yawQ.setFromAxisAngle(_yAxis, deviceState.yawOffset));
+      }
+    }
+
+    function onDeviceOrientation(e) {
+      if (e.alpha === null || e.beta === null || e.gamma === null) return;
+      deviceState.alpha = THREE.MathUtils.degToRad(e.alpha);
+      deviceState.beta = THREE.MathUtils.degToRad(e.beta);
+      deviceState.gamma = THREE.MathUtils.degToRad(e.gamma);
+      if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) {
+        deviceState.compassHeading = e.webkitCompassHeading;
+      }
+    }
+    function onScreenOrientation() {
+      const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+      deviceState.screenOrient = THREE.MathUtils.degToRad(angle);
+    }
+    onScreenOrientation();
+    window.addEventListener('orientationchange', onScreenOrientation);
+
+    async function requestMotionPermission() {
+      try {
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+          const r = await DeviceOrientationEvent.requestPermission();
+          if (r !== 'granted') return false;
+        }
+        if (!deviceState.listenerAttached) {
+          const evtName = ('ondeviceorientationabsolute' in window)
+            ? 'deviceorientationabsolute' : 'deviceorientation';
+          window.addEventListener(evtName, onDeviceOrientation, true);
+          deviceState.listenerAttached = true;
+        }
+        deviceState.permissionGranted = true;
+        return true;
+      } catch (err) {
+        console.warn('[motion]', err);
+        return false;
+      }
+    }
+
+    const lookModeBtn = document.getElementById('look-mode-btn');
+    const hintEl = document.getElementById('move-hint');
+    const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+
+    function updateLookModeUI() {
+      if (deviceState.gyroActive) {
+        lookModeBtn.textContent = 'スマホを動かして見渡す';
+        lookModeBtn.classList.add('is-active');
+        hintEl.textContent = 'スマホを動かすと見渡せます／中の円で移動';
+      } else {
+        lookModeBtn.textContent = 'スマホ画面をスワイプして見渡す';
+        lookModeBtn.classList.remove('is-active');
+        hintEl.textContent = isTouch
+          ? '画面をスワイプで見回し／中の円で移動'
+          : 'ドラッグで見回し／W・A・S・Dまたは中の円で移動';
+      }
+    }
+
+    lookModeBtn.addEventListener('click', async () => {
+      if (deviceState.gyroActive) {
+        // ジャイロ → スワイプへ切替（現在のカメラ向きを引き継ぐ）
+        const cur = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+        input.mouseDrag.yaw = cur.y;
+        input.mouseDrag.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cur.x));
+        deviceState.gyroActive = false;
+        updateLookModeUI();
+        showToast('スマホ画面をスワイプして見渡すモードに切り替えました', 2200);
+      } else {
+        const ok = deviceState.permissionGranted || await requestMotionPermission();
+        if (!ok) {
+          showToast('モーションセンサーが許可されていないか、非対応端末です', 3000);
+          return;
+        }
+        deviceState.gyroActive = true;
+        deviceState.calibrated = false;
+        updateLookModeUI();
+        showToast('スマホを動かして見渡すモードに切り替えました', 2200);
+      }
+    });
+
+    // ===== GPS歩行追従（現地モードのみ・擬似6DoF） =====
+    const gpsWalkBtn = document.getElementById('gps-walk-btn');
+    let gpsWalkEnabled = false;
+    let gpsWatchId = null;
+    let gpsTargetXZ = null;
+
+    function stopGpsWalk() {
+      if (gpsWatchId !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+      }
+      gpsWatchId = null;
+      gpsTargetXZ = null;
+      gpsWalkEnabled = false;
+      gpsWalkBtn.textContent = '歩くと位置が移動：OFF';
+      gpsWalkBtn.classList.remove('is-active');
+    }
+
+    function startGpsWalk() {
+      if (!('geolocation' in navigator)) {
+        showToast('この端末では位置情報が利用できません');
+        return;
+      }
+      gpsWalkEnabled = true;
+      gpsWalkBtn.textContent = '歩くと位置が移動：ON';
+      gpsWalkBtn.classList.add('is-active');
+      showToast('実際の歩行（GPS）に合わせて位置が移動します', 2600);
+      gpsWatchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const g = latLngToGlbXZ(pos.coords.latitude, pos.coords.longitude);
+          if (g.dist <= GEO_CFG.siteRadiusMeters) {
+            gpsTargetXZ = { x: g.x, z: g.z };
+          }
+        },
+        () => {},
+        { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+      );
+    }
+
+    if (isGpsMode) {
+      gpsWalkBtn.classList.remove('hidden');
+      gpsWalkBtn.addEventListener('click', () => {
+        if (gpsWalkEnabled) stopGpsWalk();
+        else startGpsWalk();
+      });
+    }
+
+    // ===== 操作（スワイプ・ジョイスティック・キーボード） =====
+    const input = {
+      kbd: { w: false, a: false, s: false, d: false },
+      mouseDrag: { yaw: 0, pitch: 0 },
+      joy: { id: null, x: 0, y: 0, mag: 0 },
+    };
+    const JOY_DEADZONE = 0.12;
+    const fadeHint = () => hintEl.classList.add('faded');
+
+    const KEYMAP = { w: 'w', ArrowUp: 'w', a: 'a', ArrowLeft: 'a', s: 's', ArrowDown: 's', d: 'd', ArrowRight: 'd' };
+    window.addEventListener('keydown', (e) => { const k = KEYMAP[e.key] || KEYMAP[e.key?.toLowerCase()]; if (k) { input.kbd[k] = true; if (started) fadeHint(); } });
+    window.addEventListener('keyup',   (e) => { const k = KEYMAP[e.key] || KEYMAP[e.key?.toLowerCase()]; if (k) input.kbd[k] = false; });
+
+    const look = { id: null, lastX: 0, lastY: 0 };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (look.id !== null) return;
+      look.id = e.pointerId; look.lastX = e.clientX; look.lastY = e.clientY;
+      try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== look.id) return;
+      const dx = e.clientX - look.lastX, dy = e.clientY - look.lastY;
+      look.lastX = e.clientX; look.lastY = e.clientY;
+      if (deviceState.gyroActive && deviceState.alpha !== null) {
+        // ジャイロ有効時も横スワイプで方角ズレを微調整可能
+        deviceState.yawOffset -= dx * 0.003;
+      } else {
+        input.mouseDrag.yaw -= dx * 0.003;
+        input.mouseDrag.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, input.mouseDrag.pitch - dy * 0.003));
+      }
+    });
+    const lookEnd = (e) => { if (e.pointerId === look.id) look.id = null; };
+    canvas.addEventListener('pointerup', lookEnd);
+    canvas.addEventListener('pointercancel', lookEnd);
+
+    const joyBase = document.getElementById('joystick');
+    const joyKnob = document.getElementById('joystick-knob');
+    function joyMove(e) {
+      const r = joyBase.getBoundingClientRect();
+      const maxR = (r.width - joyKnob.offsetWidth) / 2;
+      let dx = e.clientX - (r.left + r.width / 2);
+      let dy = e.clientY - (r.top + r.height / 2);
+      const d = Math.hypot(dx, dy);
+      if (d > maxR) { dx *= maxR / d; dy *= maxR / d; }
+      joyKnob.style.transform = `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px))`;
+      input.joy.x = dx / maxR; input.joy.y = dy / maxR; input.joy.mag = Math.min(1, d / maxR);
+    }
+    function joyEnd(e) {
+      if (e.pointerId !== input.joy.id) return;
+      input.joy.id = null; input.joy.x = input.joy.y = input.joy.mag = 0;
+      joyKnob.style.transform = '';
+      joyBase.classList.remove('active');
+    }
+    joyBase.addEventListener('pointerdown', (e) => {
+      if (input.joy.id !== null) return;
+      input.joy.id = e.pointerId;
+      try { joyBase.setPointerCapture(e.pointerId); } catch (_) {}
+      joyBase.classList.add('active');
+      joyMove(e); fadeHint();
+      e.preventDefault();
+    });
+    joyBase.addEventListener('pointermove', (e) => { if (e.pointerId === input.joy.id) joyMove(e); });
+    joyBase.addEventListener('pointerup', joyEnd);
+    joyBase.addEventListener('pointercancel', joyEnd);
+    joyBase.addEventListener('lostpointercapture', joyEnd);
+
+    // ===== 毎フレーム処理 =====
+    const clock = new THREE.Clock();
+    const statsEl = document.getElementById('stats');
+    let frameCount = 0;
+    let started = false;
+    const _mouseEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    const _fwd = new THREE.Vector3(), _rgt = new THREE.Vector3(), _move = new THREE.Vector3();
+    const initialCameraPos = new THREE.Vector3(0, CONFIG.eyeHeight, 10.87);
+
+    function tick() {
+      const dt = Math.min(clock.getDelta(), 0.1);
+
+      if (deviceState.gyroActive && deviceState.alpha !== null) {
+        setCameraQuaternion(deviceState.alpha, deviceState.beta, deviceState.gamma, deviceState.screenOrient);
+      } else {
+        _mouseEuler.set(input.mouseDrag.pitch, input.mouseDrag.yaw, 0, 'YXZ');
+        camera.quaternion.setFromEuler(_mouseEuler);
+      }
+
+      // GPS歩行追従（有効時は現在地へ滑らかに補間）
+      if (gpsWalkEnabled && gpsTargetXZ) {
+        const lerpRate = Math.min(1, dt * 2.5);
+        camera.position.x += (gpsTargetXZ.x - camera.position.x) * lerpRate;
+        camera.position.z += (gpsTargetXZ.z - camera.position.z) * lerpRate;
+      }
+
+      _move.set(0, 0, 0);
+      _fwd.set(0, 0, -1).applyQuaternion(camera.quaternion); _fwd.y = 0; _fwd.normalize();
+      _rgt.set(1, 0, 0).applyQuaternion(camera.quaternion);  _rgt.y = 0; _rgt.normalize();
+      if (input.kbd.w) _move.add(_fwd);
+      if (input.kbd.s) _move.sub(_fwd);
+      if (input.kbd.d) _move.add(_rgt);
+      if (input.kbd.a) _move.sub(_rgt);
+      let speed = _move.lengthSq() > 0 ? 1 : 0;
+      const joy = input.joy;
+      if (joy.mag > JOY_DEADZONE) {
+        _move.addScaledVector(_fwd, -joy.y).addScaledVector(_rgt, joy.x);
+        speed = Math.max(speed, Math.min(1, (joy.mag - JOY_DEADZONE) / (1 - JOY_DEADZONE)));
+      }
+      const footY = camera.position.y - CONFIG.eyeHeight;
+
+      if (speed > 0 && _move.lengthSq() > 1e-8) {
+        _move.normalize().multiplyScalar(CONFIG.walkSpeed * speed * dt);
+        const curX = camera.position.x, curZ = camera.position.z;
+        const newX = curX + _move.x;
+        if (!isBlocked(newX, curZ, footY, curX, curZ)) camera.position.x = newX;
+        const newZ = curZ + _move.z;
+        if (!isBlocked(camera.position.x, newZ, footY, camera.position.x, curZ)) camera.position.z = newZ;
+      }
+
+      const groundY = findGround(camera.position.x, camera.position.z, camera.position.y - CONFIG.eyeHeight);
+      if (groundY !== null) {
+        const dy = groundY + CONFIG.eyeHeight - camera.position.y;
+        camera.position.y += Math.max(-CONFIG.fallSpeed * dt, Math.min(CONFIG.climbSpeed * dt, dy));
+      }
+      if (camera.position.y < -100) camera.position.copy(initialCameraPos);
+
+      for (const tObj of billboardTexts) {
+        tObj.getWorldPosition(_bbWorldPos);
+        tObj.lookAt(camera.position.x, _bbWorldPos.y, camera.position.z);
+        if (tObj.userData._frontAngle) tObj.rotateY(-tObj.userData._frontAngle);
+      }
+      updateKaisetsu(camera.position);
+
+      if (debug && (frameCount++ % 10) === 0) {
+        const p = camera.position;
+        const heading = deviceState.compassHeading !== null ? deviceState.compassHeading.toFixed(0) + '°' : '--';
+        statsEl.textContent = `XZ ${p.x.toFixed(1)}, ${p.z.toFixed(1)}\nEYE Y ${p.y.toFixed(2)}\nN ${heading}\nGYRO ${deviceState.gyroActive ? 'ON' : 'OFF'}`;
+      }
+      if (composer) composer.render();
+      else renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+
+    function applyDefaultSpawnPoint() {
+      if (spawnOverride) {
+        const parts = spawnOverride.split(',').map(Number);
+        if (parts.length === 3 && parts.every(Number.isFinite)) {
+          initialCameraPos.set(parts[0], parts[1] + CONFIG.eyeHeight, parts[2]);
+        }
+      } else if (cameraParam && cameraMarkers.has(cameraParam.toLowerCase())) {
+        const targetCam = cameraMarkers.get(cameraParam.toLowerCase());
+        const groundY = findGroundAt(targetCam.x, targetCam.z);
+        initialCameraPos.set(targetCam.x, groundY !== null ? groundY + CONFIG.eyeHeight : targetCam.y, targetCam.z);
+      } else if (cameraMarkers.has('camera_choya')) {
+        const targetCam = cameraMarkers.get('camera_choya');
+        const groundY = findGroundAt(targetCam.x, targetCam.z);
+        initialCameraPos.set(targetCam.x, groundY !== null ? groundY + CONFIG.eyeHeight : targetCam.y, targetCam.z);
+      } else if (cameraMarker) {
+        const groundY = findGroundAt(cameraMarker.x, cameraMarker.z);
+        initialCameraPos.set(cameraMarker.x, groundY !== null ? groundY + CONFIG.eyeHeight : cameraMarker.y, cameraMarker.z);
+      } else if (spawnPoint) {
+        initialCameraPos.set(spawnPoint.x, spawnPoint.y + CONFIG.eyeHeight, spawnPoint.z);
+      }
+      camera.position.copy(initialCameraPos);
+    }
+
+    function resolveGpsSpawnPoint() {
+      return new Promise((resolve) => {
+        if (!('geolocation' in navigator)) {
+          showToast('位置情報が利用できないため、庁屋前から開始します');
+          resolve(false);
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const g = latLngToGlbXZ(pos.coords.latitude, pos.coords.longitude);
+            if (g.dist <= GEO_CFG.siteRadiusMeters) {
+              const groundY = findGroundAt(g.x, g.z);
+              const y = groundY !== null ? groundY + CONFIG.eyeHeight : CONFIG.eyeHeight;
+              initialCameraPos.set(g.x, y, g.z);
+              camera.position.copy(initialCameraPos);
+              showToast(`現在地から開始しました（誤差目安 ±${Math.round(pos.coords.accuracy || 5)}m）`, 3200);
+              resolve(true);
+            } else {
+              showToast(`遺跡から約${Math.round(g.dist)}m離れているため、庁屋前から開始します`, 4000);
+              resolve(false);
+            }
+          },
+          () => {
+            showToast('現在地を取得できなかったため、庁屋前から開始します', 3500);
+            resolve(false);
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+        );
+      });
+    }
+
+    // ===== 読み込み =====
+    const ready = Promise.all([loadModel(modelUrl), loadKaisetsu(), loadSky()])
+      .then(([, entries]) => {
+        buildZones(entries);
+        applyDefaultSpawnPoint();
+        try { renderer.compile(scene, camera); } catch (_) {}
+        loadingBar.style.width = '100%';
+        loadingLabel.textContent = '準備ができました';
+        loadingEl.classList.add('done');
+        startBtn.disabled = false;
+        startLabel.textContent = isGpsMode ? '現在地からスタート' : 'スタート';
+      });
+    ready.catch((err) => {
+      console.error('[viewer] 読み込み失敗:', err);
+      loadingLabel.innerHTML = '<span class="err">3Dデータを読み込めませんでした。<br>ページを再読み込みしてください。</span>';
+      loadingEl.classList.add('done');
+      startBtn.disabled = true;
+      startLabel.textContent = 'エラー';
+    });
+
+    // ===== スタートボタン（1タップでiOS/Androidセンサー許可を取得） =====
+    startBtn.addEventListener('click', async () => {
+      if (started) return;
+      started = true;
+      startBtn.disabled = true;
+      startLabel.textContent = isGpsMode ? '現在地を確認中…' : '開始しています…';
+
+      const motionOk = await requestMotionPermission();
+      try { await ready; } catch (_) { return; }
+
+      if (isGpsMode) {
+        await resolveGpsSpawnPoint();
+      }
+
+      // モバイル端末かつセンサー許可済みなら「スマホを動かして見渡す」を初期ON
+      if (motionOk && isTouch) {
+        deviceState.gyroActive = true;
+        deviceState.calibrated = false;
+      } else {
+        deviceState.gyroActive = false;
+      }
+      updateLookModeUI();
+
+      const start = document.getElementById('start');
+      start.classList.add('leaving');
+      setTimeout(() => start.classList.add('hidden'), 400);
+      document.getElementById('hud').classList.remove('hidden');
+      if (debug) statsEl.classList.remove('hidden');
+      clock.getDelta();
+      tick();
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (deviceState.gyroActive && deviceState.alpha !== null) {
+        deviceState.calibrated = false;
+        calibrateGyroOrientation();
+      } else {
+        input.mouseDrag.yaw = 0;
+        input.mouseDrag.pitch = 0;
+      }
+      camera.position.copy(initialCameraPos);
+    });
+
+    window.addEventListener('resize', () => {
+      const w = window.innerWidth, h = window.innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+      if (composer) composer.setSize(w, h);
+      if (activeZone) panel.classList.toggle('scrollable', panelBody.scrollHeight > panelBody.clientHeight + 1);
+    });
+
+    if (debug) window.__viewer = { camera, zones, anchors, input, deviceState };
+  </script>
+</body>
+</html>
