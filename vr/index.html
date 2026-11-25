@@ -127,6 +127,24 @@
       color: #fff; background: rgba(42, 61, 114, .92);
       border-color: rgba(255, 255, 255, .4);
     }
+    .look-seg {
+      display: inline-flex; align-items: center;
+      background: rgba(244, 239, 227, .92);
+      border: 1.5px solid rgba(28, 42, 80, .3);
+      border-radius: 999px; padding: 2px; gap: 2px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .24);
+    }
+    .look-seg-btn {
+      font-family: var(--ud); font-weight: 700; font-size: .72rem; line-height: 1.2;
+      color: var(--ai-deep); background: transparent;
+      border: none; border-radius: 999px;
+      padding: .38rem .68rem; cursor: pointer; white-space: nowrap;
+      transition: background .15s, color .15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .look-seg-btn.is-active {
+      background: var(--ai); color: #fff;
+    }
     #hud .stats {
       font-family: var(--mono); font-size: .7rem; line-height: 1.45; text-align: right;
       color: #fff; background: rgba(0, 0, 0, .55); padding: .3rem .5rem; border-radius: 4px;
@@ -261,7 +279,10 @@
   <div id="hud" class="hidden">
     <div class="top-bar">
       <div class="top-controls">
-        <button id="look-mode-btn" class="hud-pill-btn" type="button">スマホ画面をスワイプして見渡す</button>
+        <div class="look-seg" role="group" aria-label="見回し方法の切替">
+          <button id="btn-look-gyro" class="look-seg-btn" type="button" aria-pressed="false">スマホを動かす</button>
+          <button id="btn-look-swipe" class="look-seg-btn is-active" type="button" aria-pressed="true">画面スワイプ</button>
+        </div>
         <button id="gps-walk-btn" class="hud-pill-btn hidden" type="button">歩くと位置が移動：OFF</button>
         <span class="stats hidden" id="stats">--</span>
       </div>
@@ -282,7 +303,7 @@
     <button id="kaisetsu-close" type="button" aria-label="解説を閉じる">×</button>
   </section>
 
-  <script src="../js/config.js?v=20261125a"></script>
+  <script src="../js/config.js?v=20261125b"></script>
   <script type="importmap">
   {
     "imports": {
@@ -749,44 +770,47 @@
       }
     }
 
-    const lookModeBtn = document.getElementById('look-mode-btn');
+    const btnLookGyro = document.getElementById('btn-look-gyro');
+    const btnLookSwipe = document.getElementById('btn-look-swipe');
     const hintEl = document.getElementById('move-hint');
     const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
     function updateLookModeUI() {
-      if (deviceState.gyroActive) {
-        lookModeBtn.textContent = 'スマホを動かして見渡す';
-        lookModeBtn.classList.add('is-active');
+      const gyroOn = !!deviceState.gyroActive;
+      btnLookGyro.classList.toggle('is-active', gyroOn);
+      btnLookGyro.setAttribute('aria-pressed', String(gyroOn));
+      btnLookSwipe.classList.toggle('is-active', !gyroOn);
+      btnLookSwipe.setAttribute('aria-pressed', String(!gyroOn));
+      if (gyroOn) {
         hintEl.textContent = 'スマホを動かすと見渡せます／中の円で移動';
       } else {
-        lookModeBtn.textContent = 'スマホ画面をスワイプして見渡す';
-        lookModeBtn.classList.remove('is-active');
         hintEl.textContent = isTouch
           ? '画面をスワイプで見回し／中の円で移動'
           : 'ドラッグで見回し／W・A・S・Dまたは中の円で移動';
       }
     }
 
-    lookModeBtn.addEventListener('click', async () => {
-      if (deviceState.gyroActive) {
-        // ジャイロ → スワイプへ切替（現在のカメラ向きを引き継ぐ）
-        const cur = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
-        input.mouseDrag.yaw = cur.y;
-        input.mouseDrag.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cur.x));
-        deviceState.gyroActive = false;
-        updateLookModeUI();
-        showToast('スマホ画面をスワイプして見渡すモードに切り替えました', 2200);
-      } else {
-        const ok = deviceState.permissionGranted || await requestMotionPermission();
-        if (!ok) {
-          showToast('モーションセンサーが許可されていないか、非対応端末です', 3000);
-          return;
-        }
-        deviceState.gyroActive = true;
-        deviceState.calibrated = false;
-        updateLookModeUI();
-        showToast('スマホを動かして見渡すモードに切り替えました', 2200);
+    btnLookGyro.addEventListener('click', async () => {
+      if (deviceState.gyroActive) return;
+      const ok = deviceState.permissionGranted || await requestMotionPermission();
+      if (!ok) {
+        showToast('モーションセンサーが許可されていないか、非対応端末です', 3000);
+        return;
       }
+      deviceState.gyroActive = true;
+      deviceState.calibrated = false;
+      updateLookModeUI();
+      showToast('スマホを動かして見渡すモードに切り替えました', 2000);
+    });
+
+    btnLookSwipe.addEventListener('click', () => {
+      if (!deviceState.gyroActive) return;
+      const cur = new THREE.Euler().setFromQuaternion(camera.quaternion, 'YXZ');
+      input.mouseDrag.yaw = cur.y;
+      input.mouseDrag.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cur.x));
+      deviceState.gyroActive = false;
+      updateLookModeUI();
+      showToast('スマホ画面をスワイプして見渡すモードに切り替えました', 2000);
     });
 
     // ===== GPS歩行追従（現地モードのみ・擬似6DoF） =====

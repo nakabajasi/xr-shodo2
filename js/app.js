@@ -228,46 +228,46 @@
     }
   }
 
-  // 建物3D & Web AR（全幅ページで開き、戻るボタンで元の画面へ復帰）
+  // 建物3D（3D鑑賞ではAR一切なし／マップ経由のときのみ床面ARを表示）
   function openBuildingViewer(b) {
-    viewerReturnView = activeViewId === "map" ? "map" : "models";
+    const fromMap = activeViewId === "map";
+    viewerReturnView = fromMap ? "map" : "models";
     markBuildingVisited(b.id);
     document.getElementById("viewer-title").textContent = `${b.name}（${b.kana}）`;
     const body = document.getElementById("viewer-body");
+    const arAttrs = fromMap
+      ? `ios-src="${b.usdz}" ar ar-modes="webxr scene-viewer quick-look"`
+      : "";
+    const arButtonHtml = fromMap
+      ? `<button slot="ar-button" class="ar-launch-btn">
+            <img src="./assets/images/icons/icon_ar.png" alt="">
+            <span>ARで見る</span>
+          </button>`
+      : "";
+    const noteText = fromMap
+      ? "ドラッグで回転・ピンチで拡大縮小できます。対応スマホでは右下の「ARで見る」から床面に配置できます。"
+      : "ドラッグで回転・ピンチで拡大縮小できます。";
     body.innerHTML = `
       <div class="viewer-full-stage">
         <model-viewer
           src="${b.glb}"
-          ios-src="${b.usdz}"
+          ${arAttrs}
           poster="${b.thumb}"
           alt="${b.name} 復元3Dモデル"
-          ar
-          ar-modes="webxr scene-viewer quick-look"
           camera-controls
           auto-rotate
           shadow-intensity="1"
           exposure="1.05"
         >
-          <button slot="ar-button" class="ar-launch-btn">
-            <img src="./assets/images/icons/icon_ar.png" alt="">
-            <span>ARで見る</span>
-          </button>
+          ${arButtonHtml}
         </model-viewer>
       </div>
       <div class="viewer-plain-body">
-        <p class="viewer-plain-note">ドラッグで回転・ピンチで拡大縮小できます。対応スマホでは右下の「ARで見る（床面置き）」からどこでも鑑賞できます。</p>
-        <div class="viewer-gps-ar-wrap">
-          <button type="button" id="btn-launch-gps-ar" class="viewer-gps-ar-btn">現地ARで見る（GPS連動・実物大）</button>
-          <p class="viewer-gps-ar-note">現地でGPSとスマホの向きに合わせて、${b.name}を1棟ずつ実物大でカメラ映像に重ねて表示します。</p>
-        </div>
+        <p class="viewer-plain-note">${noteText}</p>
         <h3 class="serif">${b.name} — ${b.role}</h3>
         <p>${b.description}</p>
       </div>
     `;
-    const gpsArBtn = document.getElementById("btn-launch-gps-ar");
-    if (gpsArBtn) {
-      gpsArBtn.addEventListener("click", () => launchGpsBuildingAr(b));
-    }
     body.scrollTop = 0;
     showView("viewer");
   }
@@ -464,7 +464,7 @@
     document.getElementById("spot-sheet-desc").textContent = data.description;
 
     const actBtn = document.getElementById("spot-sheet-action");
-    actBtn.textContent = "3D・ARで体験";
+    actBtn.textContent = "3D・床面AR";
     actBtn.onclick = () => {
       openBuildingViewer(data);
     };
