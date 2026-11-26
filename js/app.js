@@ -240,7 +240,7 @@
       : "";
     const arButtonHtml = fromMap
       ? `<button slot="ar-button" class="ar-launch-btn">
-            <img src="./assets/images/icons/icon_ar.png" alt="">
+            <img src="./assets/images/icons/icon_ar.svg" alt="">
             <span>ARで見る</span>
           </button>`
       : "";
@@ -413,7 +413,34 @@
     });
   }
 
+  function launchFloorArImmediate(b) {
+    markBuildingVisited(b.id);
+    if (window.__IS_CANVAS_PREVIEW) {
+      showAlert("プレビュー環境", `GitHub Pages公開版では、${b.name}の床面AR（iOS: ARクイックルック / Android: Scene Viewer）が直接起動します。`);
+      return;
+    }
+    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    if (isIOS && b.usdz && !b.usdz.startsWith("data:")) {
+      const iosLink = document.getElementById("spot-ar-ios-link");
+      if (iosLink) {
+        iosLink.setAttribute("href", b.usdz);
+        iosLink.click();
+        return;
+      }
+    }
+    if (isAndroid && b.glb && !b.glb.startsWith("data:")) {
+      const absGlb = new URL(b.glb, window.location.href).href;
+      const intentUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(absGlb)}&mode=ar_preferred&title=${encodeURIComponent(b.name)}#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;end;`;
+      window.location.href = intentUrl;
+      return;
+    }
+    showAlert("AR起動について", "「ここでAR」はAR対応スマートフォン（iOS Safari / Android Chrome）で直接カメラARが起動します。");
+  }
+
   function launchGpsBuildingAr(b) {
+    markBuildingVisited(b.id);
     if (window.__IS_CANVAS_PREVIEW) {
       showAlert("プレビュー環境", `GitHub Pages公開版では、GPS＋スマホ向き連動の現地AR画面（${b.name}）へ遷移します。`);
       return;
@@ -437,7 +464,7 @@
         if (map) {
           if (!userMarker) {
             userMarker = L.marker([userCoords.lat, userCoords.lng], {
-              icon: createPinIcon("./assets/images/map/pin_user.png")
+              icon: createPinIcon("./assets/images/map/pin_user.svg")
             }).addTo(map);
           } else {
             userMarker.setLatLng([userCoords.lat, userCoords.lng]);
@@ -464,9 +491,10 @@
     document.getElementById("spot-sheet-desc").textContent = data.description;
 
     const actBtn = document.getElementById("spot-sheet-action");
-    actBtn.textContent = "3D・床面AR";
+    actBtn.textContent = "ここでAR";
     actBtn.onclick = () => {
-      openBuildingViewer(data);
+      closeSpotSheet();
+      launchFloorArImmediate(data);
     };
     const gpsArBtn = document.getElementById("spot-sheet-gps-ar");
     if (gpsArBtn) {

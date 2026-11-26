@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="theme-color" content="#1c2a50">
-  <title>正道官衙遺跡 現地AR（GPS連動）</title>
+  <title>正道官衙遺跡 現地でAR</title>
   <link rel="icon" href="data:,">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -49,32 +49,16 @@
     }
     .start-box {
       width: min(360px, 92vw); text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: 14px;
-    }
-    .start-kicker {
-      font-size: .78rem; font-weight: 700; letter-spacing: .1em;
-      color: #fff; background: var(--ai); padding: .28rem .85rem; border-radius: 999px;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
     }
     .start-title {
-      font-family: var(--mincho); font-size: 1.6rem; font-weight: 700; color: var(--ai-deep);
+      font-family: var(--mincho); font-size: 1.7rem; font-weight: 700; color: var(--ai-deep);
     }
     .start-role {
-      font-size: .92rem; font-weight: 700; color: var(--vermilion); margin-top: -6px;
+      font-size: .92rem; font-weight: 700; color: var(--vermilion); margin-top: -8px;
     }
     .start-desc {
       font-size: .85rem; line-height: 1.7; color: #454957;
-    }
-    .building-chips {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%;
-    }
-    .building-chip {
-      font-family: var(--ud); font-size: .8rem; font-weight: 700;
-      padding: .42rem .78rem; border-radius: 999px;
-      border: 1.5px solid rgba(34, 52, 94, .3);
-      background: #fff; color: var(--ai); cursor: pointer;
-    }
-    .building-chip.is-active {
-      background: var(--ai); color: #fff; border-color: var(--ai);
     }
     .loading-wrap {
       width: 100%; display: flex; flex-direction: column; gap: 6px;
@@ -87,14 +71,15 @@
       height: 100%; width: 0%; background: var(--ai); transition: width .2s linear;
     }
     #btn-start-ar {
-      width: 100%; min-height: 54px; border: none; border-radius: 999px;
+      width: 100%; min-height: 54px; padding: 12px 16px;
+      border: none; border-radius: 999px;
       background: var(--vermilion); color: #fff;
-      font-family: var(--ud); font-size: 1.05rem; font-weight: 700; letter-spacing: .12em;
+      font-family: var(--ud); font-size: .96rem; font-weight: 700; letter-spacing: .04em;
       cursor: pointer; box-shadow: 0 4px 14px rgba(159, 51, 40, .3);
     }
     #btn-start-ar:disabled { background: #9aa0ad; box-shadow: none; cursor: progress; }
     .start-back-link {
-      font-size: .84rem; font-weight: 700; color: var(--ai); text-decoration: none; margin-top: 4px;
+      font-size: .86rem; font-weight: 700; color: var(--ai); text-decoration: none; margin-top: 4px;
     }
 
     /* HUD */
@@ -148,7 +133,7 @@
     /* 下部コントロール */
     .hud-bottom {
       position: absolute; left: 10px; right: 10px;
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 18px);
       display: flex; flex-direction: column; align-items: center; gap: 8px;
     }
     .hud-hint {
@@ -157,19 +142,6 @@
     }
     .hud-actions {
       display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; pointer-events: auto;
-    }
-    .hud-building-bar {
-      display: flex; gap: 6px; overflow-x: auto; max-width: 100%; padding: 2px 4px;
-      pointer-events: auto;
-    }
-    .hud-b-btn {
-      flex-shrink: 0; font-family: var(--ud); font-size: .75rem; font-weight: 700;
-      padding: .38rem .75rem; border-radius: 999px;
-      border: 1px solid rgba(255, 255, 255, .35);
-      background: rgba(0, 0, 0, .55); color: #fff; cursor: pointer;
-    }
-    .hud-b-btn.is-active {
-      background: #f4efe3; color: var(--ai-deep); border-color: #f4efe3;
     }
   </style>
 </head>
@@ -180,20 +152,18 @@
   <!-- 開始画面 -->
   <div id="start-screen">
     <div class="start-box">
-      <span class="start-kicker">GPS連動 現地AR（実物大）</span>
       <h1 id="start-title" class="start-title">庁屋</h1>
       <p id="start-role" class="start-role">郡衙の中心建物</p>
       <p class="start-desc">
-        GPSとスマホの向きに合わせて、復元建物を1棟ずつ実物大でカメラ映像に重ねて表示します。<br>
+        GPSとスマホの向きに合わせて、復元建物を実物大でカメラ映像に重ねて表示します。<br>
         開始時にカメラ・位置情報・モーションセンサーを許可してください。
       </p>
-      <div id="start-building-chips" class="building-chips"></div>
       <div class="loading-wrap">
         <span id="loading-text">3Dモデルを読み込んでいます…</span>
         <div class="loading-bar-bg"><div id="loading-fill" class="loading-bar-fill"></div></div>
       </div>
       <button id="btn-start-ar" type="button" disabled>読み込み中…</button>
-      <a class="start-back-link" href="../index.html#map">← アプリへ戻る</a>
+      <a class="start-back-link" href="../index.html#map">← マップへ戻る</a>
     </div>
   </div>
 
@@ -216,16 +186,15 @@
     <div id="dir-guide" class="hidden">▶ 右へ回ってください</div>
 
     <div class="hud-bottom">
-      <div class="hud-hint">左右にスワイプすると方角のズレを微調整できます</div>
+      <div class="hud-hint">左右にスワイプすると建物の向きを回転できます</div>
       <div class="hud-actions">
-        <button id="btn-reset-yaw" class="hud-btn" type="button">方角リセット</button>
+        <button id="btn-reset-yaw" class="hud-btn" type="button">向きリセット</button>
         <button id="btn-toggle-demo" class="hud-btn hidden" type="button">GPS位置に戻す</button>
       </div>
-      <div id="hud-building-bar" class="hud-building-bar"></div>
     </div>
   </div>
 
-  <script src="../js/config.js?v=20261125b"></script>
+  <script src="../js/config.js?v=20261127a"></script>
   <script type="importmap">
   {
     "imports": {
@@ -246,11 +215,14 @@
     const EYE_HEIGHT = 1.55;
     const FAR_THRESHOLD_M = 200;
 
-    let currentBuilding = BUILDINGS.find(b => b.id === params.get('building')) || BUILDINGS[0];
+    const currentBuilding = BUILDINGS.find(b => b.id === params.get('building')) || BUILDINGS[0];
     let started = false;
     let demoMode = false;
     let userCoords = null;
     let gpsWatchId = null;
+
+    // オブジェクト中心回転オフセット（スワイプで建物を中心軸まわりに回転）
+    let modelUserYaw = 0;
 
     // DOM
     const videoEl = document.getElementById('camera-video');
@@ -270,23 +242,46 @@
     const btnDemoPlace = document.getElementById('btn-demo-place');
     const btnToggleDemo = document.getElementById('btn-toggle-demo');
 
-    // Three.js（透過背景）
+    // Three.js（透過背景・Unlit）
     const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMapping = THREE.NoToneMapping;
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, EYE_HEIGHT, 0);
 
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x7a6b58, 1.05));
-    const sun = new THREE.DirectionalLight(0xfff1d6, 1.35);
-    sun.position.set(20, 40, 20);
-    scene.add(sun);
+    function toUnlitMaterial(mat) {
+      if (!mat) return mat;
+      if (mat.isMeshBasicMaterial) return mat;
+      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      const basic = new THREE.MeshBasicMaterial({
+        map: mat.map || null,
+        color: mat.color ? mat.color.clone() : new THREE.Color(0xffffff),
+        transparent: !!mat.transparent,
+        opacity: typeof mat.opacity === 'number' ? mat.opacity : 1,
+        alphaMap: mat.alphaMap || null,
+        alphaTest: mat.alphaTest || 0,
+        side: mat.side !== undefined ? mat.side : THREE.FrontSide,
+        vertexColors: !!mat.vertexColors,
+      });
+      if (typeof mat.dispose === 'function') mat.dispose();
+      return basic;
+    }
+
+    function applyUnlitToRoot(root) {
+      root.traverse((obj) => {
+        if (!obj.isMesh || !obj.material) return;
+        if (Array.isArray(obj.material)) {
+          obj.material = obj.material.map(toUnlitMaterial);
+        } else {
+          obj.material = toUnlitMaterial(obj.material);
+        }
+      });
+    }
 
     const modelPivot = new THREE.Group();
     scene.add(modelPivot);
@@ -296,7 +291,6 @@
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
     gltfLoader.setDRACOLoader(dracoLoader);
 
-    const modelCache = new Map();
     let activeModelObj = null;
 
     function resolveModelPath(p) {
@@ -305,19 +299,15 @@
       return p;
     }
 
+    function applyModelRotation() {
+      if (!activeModelObj || !currentBuilding) return;
+      activeModelObj.rotation.y = THREE.MathUtils.degToRad(currentBuilding.arYawDeg || 0) + modelUserYaw;
+    }
+
     function loadBuildingModel(b) {
       startTitle.textContent = b.name;
       startRole.textContent = b.role;
       hudName.textContent = b.name;
-
-      if (modelCache.has(b.id)) {
-        attachModel(modelCache.get(b.id), b);
-        loadingFill.style.width = '100%';
-        loadingText.textContent = `${b.name} の準備ができました`;
-        btnStart.disabled = false;
-        btnStart.textContent = '現地ARをはじめる';
-        return Promise.resolve();
-      }
 
       btnStart.disabled = true;
       btnStart.textContent = '読み込み中…';
@@ -329,7 +319,8 @@
           resolveModelPath(b.glb),
           (gltf) => {
             const root = gltf.scene;
-            // バウンディングボックス底面を Y=0 に接地補正
+            applyUnlitToRoot(root);
+            // バウンディングボックス中心を原点、底面を Y=0 に揃えてオブジェクト中心回転にする
             root.updateMatrixWorld(true);
             const box = new THREE.Box3().setFromObject(root);
             const center = new THREE.Vector3();
@@ -338,13 +329,15 @@
 
             const wrapper = new THREE.Group();
             wrapper.add(root);
-            modelCache.set(b.id, wrapper);
-            attachModel(wrapper, b);
+            activeModelObj = wrapper;
+            applyModelRotation();
+            modelPivot.add(activeModelObj);
+            updateModelPlacement();
 
             loadingFill.style.width = '100%';
             loadingText.textContent = `${b.name} の準備ができました`;
             btnStart.disabled = false;
-            btnStart.textContent = '現地ARをはじめる';
+            btnStart.textContent = '現地でAR（GPSを使用）をスタート';
             resolve();
           },
           (xhr) => {
@@ -363,45 +356,6 @@
       });
     }
 
-    function attachModel(wrapper, b) {
-      if (activeModelObj) modelPivot.remove(activeModelObj);
-      activeModelObj = wrapper;
-      activeModelObj.rotation.y = THREE.MathUtils.degToRad(b.arYawDeg || 0);
-      modelPivot.add(activeModelObj);
-      updateModelPlacement();
-    }
-
-    // 建物切替UI（開始画面＋HUD下部）
-    function renderBuildingSelectors() {
-      const startWrap = document.getElementById('start-building-chips');
-      const hudWrap = document.getElementById('hud-building-bar');
-      startWrap.innerHTML = '';
-      hudWrap.innerHTML = '';
-      BUILDINGS.forEach((b) => {
-        const c1 = document.createElement('button');
-        c1.type = 'button';
-        c1.className = 'building-chip' + (b.id === currentBuilding.id ? ' is-active' : '');
-        c1.textContent = b.name;
-        c1.addEventListener('click', () => selectBuilding(b));
-        startWrap.appendChild(c1);
-
-        const c2 = document.createElement('button');
-        c2.type = 'button';
-        c2.className = 'hud-b-btn' + (b.id === currentBuilding.id ? ' is-active' : '');
-        c2.textContent = b.name;
-        c2.addEventListener('click', () => selectBuilding(b));
-        hudWrap.appendChild(c2);
-      });
-    }
-
-    async function selectBuilding(b) {
-      currentBuilding = b;
-      renderBuildingSelectors();
-      if (started) hudDist.textContent = `${b.name} を読み込み中…`;
-      await loadBuildingModel(b);
-      updateModelPlacement();
-    }
-
     // ===== 地理計算（東=+X, 南=+Z, 北=-Z） =====
     function relativeEastSouth(fromLat, fromLng, toLat, toLng) {
       const R = 6378137.0;
@@ -410,7 +364,6 @@
       const east = dLng * R * Math.cos(fromLat * Math.PI / 180);
       const south = -dLat * R;
       const dist = Math.hypot(east, south);
-      // 真北=0°, 東=90°, 南=180°, 西=270°
       const bearing = (Math.atan2(east, -south) * 180 / Math.PI + 360) % 360;
       return { east, south, dist, bearing };
     }
@@ -423,7 +376,6 @@
     function updateModelPlacement() {
       if (!currentBuilding) return;
       if (demoMode) {
-        // 現在のカメラ正面18m先に配置
         const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
         fwd.y = 0;
         if (fwd.lengthSq() < 1e-4) fwd.set(0, 0, -1);
@@ -437,7 +389,6 @@
 
       btnToggleDemo.classList.add('hidden');
       if (!userCoords) {
-        // GPS取得前の仮配置（北へ20m）
         modelPivot.position.set(0, 0, -20);
         hudDist.textContent = 'GPS測位中…';
         return;
@@ -452,13 +403,11 @@
         hudDist.textContent = `${dirLabel}へ 約${km}（現地外）`;
         farBannerText.textContent = `${currentBuilding.name}から約${km}離れています。現地以外でもお試し表示で実物大を確認できます。`;
         farBanner.classList.remove('hidden');
-        // 実座標方向のまま最大80m先へクランプして方向だけ分かるようにする
         const scale = 80 / rel.dist;
         modelPivot.position.set(rel.east * scale, 0, rel.south * scale);
       } else {
         farBanner.classList.add('hidden');
         hudDist.textContent = `${dirLabel}へ 約${distRound}m`;
-        // 近すぎる場合は最低4m離してめり込みを軽減
         const minDist = 4;
         const factor = rel.dist > 0.1 && rel.dist < minDist ? (minDist / rel.dist) : 1;
         modelPivot.position.set(rel.east * factor, 0, rel.south * factor);
@@ -469,8 +418,8 @@
     const orientState = {
       alpha: null, beta: null, gamma: null,
       screenOrient: 0, compassHeading: null,
-      baseYawOffset: 0, userYawOffset: 0, calibrated: false,
-      dragYaw: 0, dragPitch: 0, hasSensor: false
+      baseYawOffset: 0, calibrated: false,
+      hasSensor: false
     };
     const _euler = new THREE.Euler();
     const _q0 = new THREE.Quaternion();
@@ -500,7 +449,6 @@
     }
 
     async function initSensors() {
-      // 1. 背面カメラ
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
@@ -513,7 +461,6 @@
           console.warn('[camera]', err);
         }
       }
-      // 2. 方位センサー
       try {
         if (typeof DeviceOrientationEvent !== 'undefined' &&
             typeof DeviceOrientationEvent.requestPermission === 'function') {
@@ -525,7 +472,6 @@
       } catch (err) {
         console.warn('[orientation]', err);
       }
-      // 3. GPS
       startGpsWatch();
     }
 
@@ -544,23 +490,19 @@
       );
     }
 
-    // スワイプによる方角微調整
-    const swipe = { id: null, x: 0, y: 0 };
+    // 左右スワイプ：建物オブジェクトの中心を軸に回転
+    const swipe = { id: null, x: 0 };
     canvas.addEventListener('pointerdown', (e) => {
       if (swipe.id !== null) return;
-      swipe.id = e.pointerId; swipe.x = e.clientX; swipe.y = e.clientY;
+      swipe.id = e.pointerId; swipe.x = e.clientX;
       try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
     });
     canvas.addEventListener('pointermove', (e) => {
       if (e.pointerId !== swipe.id) return;
-      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      swipe.x = e.clientX; swipe.y = e.clientY;
-      if (orientState.hasSensor) {
-        orientState.userYawOffset -= dx * 0.004;
-      } else {
-        orientState.dragYaw -= dx * 0.004;
-        orientState.dragPitch = Math.max(-1.2, Math.min(1.2, orientState.dragPitch - dy * 0.004));
-      }
+      const dx = e.clientX - swipe.x;
+      swipe.x = e.clientX;
+      modelUserYaw += dx * 0.008;
+      applyModelRotation();
     });
     const endSwipe = (e) => { if (e.pointerId === swipe.id) swipe.id = null; };
     canvas.addEventListener('pointerup', endSwipe);
@@ -568,10 +510,9 @@
 
     // ボタン操作
     document.getElementById('btn-reset-yaw').addEventListener('click', () => {
-      orientState.userYawOffset = 0;
+      modelUserYaw = 0;
+      applyModelRotation();
       orientState.calibrated = false;
-      orientState.dragYaw = 0;
-      orientState.dragPitch = 0;
     });
     document.getElementById('btn-refresh-gps').addEventListener('click', () => {
       hudDist.textContent = '位置を再取得中…';
@@ -590,7 +531,6 @@
     const _toTarget = new THREE.Vector3();
     const _camFwd = new THREE.Vector3();
     const _camRight = new THREE.Vector3();
-    const _dragEuler = new THREE.Euler(0, 0, 0, 'YXZ');
 
     function animate() {
       if (orientState.hasSensor && orientState.alpha !== null) {
@@ -606,13 +546,9 @@
           orientState.baseYawOffset = targetYaw - _tmpEuler.y;
           orientState.calibrated = true;
         }
-        const totalYaw = orientState.baseYawOffset + orientState.userYawOffset;
-        if (totalYaw !== 0) {
-          camera.quaternion.premultiply(_yawQ.setFromAxisAngle(_yAxis, totalYaw));
+        if (orientState.baseYawOffset !== 0) {
+          camera.quaternion.premultiply(_yawQ.setFromAxisAngle(_yAxis, orientState.baseYawOffset));
         }
-      } else {
-        _dragEuler.set(orientState.dragPitch, orientState.dragYaw, 0, 'YXZ');
-        camera.quaternion.setFromEuler(_dragEuler);
       }
 
       // 画面外方向インジケーター
@@ -657,7 +593,6 @@
     });
 
     // 初期化
-    renderBuildingSelectors();
     loadBuildingModel(currentBuilding);
   </script>
 </body>

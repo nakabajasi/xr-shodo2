@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./css/style.css?v=20261125b">
+  <link rel="stylesheet" href="./css/style.css?v=20261127a">
   <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 </head>
 <body>
@@ -85,7 +85,7 @@
           <span>復元建物配置図</span>
         </button>
         <button id="btn-layer-dig" class="layer-toggle-btn">
-          <img src="./assets/images/icons/icon_layer_dig.png" alt="">
+          <img src="./assets/images/icons/icon_layer_dig.svg" alt="">
           <span>発掘調査図面</span>
         </button>
       </div>
@@ -112,10 +112,13 @@
         </div>
         <p id="spot-sheet-desc" class="spot-sheet-desc"></p>
         <div class="spot-sheet-actions">
-          <button id="spot-sheet-action" class="primary-btn accent-red">3D・床面AR</button>
-          <button id="spot-sheet-gps-ar" class="primary-btn">現地AR</button>
+          <button id="spot-sheet-action" class="primary-btn accent-red">ここでAR</button>
+          <button id="spot-sheet-gps-ar" class="primary-btn">現地でAR</button>
           <button class="secondary-btn" onclick="document.getElementById('map-spot-sheet').classList.remove('is-open')">閉じる</button>
         </div>
+        <a id="spot-ar-ios-link" rel="ar" href="" style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;" tabindex="-1" aria-hidden="true">
+          <img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="">
+        </a>
       </div>
     </section>
 
@@ -418,7 +421,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-  <script src="./js/config.js?v=20261125b"></script>
-  <script src="./js/app.js?v=20261125b"></script>
+  <script src="./js/config.js?v=20261127a"></script>
+  <script src="./js/app.js?v=20261127a"></script>
 </body>
 </html>

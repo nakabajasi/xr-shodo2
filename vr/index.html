@@ -303,7 +303,7 @@
     <button id="kaisetsu-close" type="button" aria-label="解説を閉じる">×</button>
   </section>
 
-  <script src="../js/config.js?v=20261125b"></script>
+  <script src="../js/config.js?v=20261127a"></script>
   <script type="importmap">
   {
     "imports": {
@@ -800,7 +800,7 @@
       deviceState.gyroActive = true;
       deviceState.calibrated = false;
       updateLookModeUI();
-      showToast('スマホを動かして見渡すモードに切り替えました', 2000);
+      showToast('スマホを動かし視点操作', 2000);
     });
 
     btnLookSwipe.addEventListener('click', () => {
@@ -810,7 +810,7 @@
       input.mouseDrag.pitch = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, cur.x));
       deviceState.gyroActive = false;
       updateLookModeUI();
-      showToast('スマホ画面をスワイプして見渡すモードに切り替えました', 2000);
+      showToast('画面スワイプで視点操作', 2000);
     });
 
     // ===== GPS歩行追従（現地モードのみ・擬似6DoF） =====
